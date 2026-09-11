@@ -72,6 +72,7 @@ import { handleGetUserStoryWorkflows } from "./handlers/get_user_story_workflows
 import { handleGetRelationTypes } from "./handlers/get_relation_types.js";
 import { handleGetVersion } from "./handlers/get_version.js";
 import { handleRemoveRoleAssignment } from "./handlers/remove_role_assignment.js";
+import { handleSetBusinessValue } from "./handlers/set_business_value.js";
 
 const server = new McpServer(
   {
@@ -601,31 +602,8 @@ server.registerTool(
         .describe('Priority ID — resolve via "get_priorities" first'),
     },
   },
-  async ({ id, entityType, priorityId }) => {
-    if (entityType === 'UserStories') {
-      const story = await tp.getUserStory<any>(id)
-      const featureId = story?.Feature?.Id
-      if (featureId) {
-        const siblings = await tp.getUserStoriesInFeatureWithPriority<any>(String(featureId))
-        const conflict = (siblings?.Items ?? []).find(
-          (s: any) => String(s.Id) !== String(id) && s.Priority?.Id === parseInt(priorityId)
-        )
-        if (conflict) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Cannot set Business Value: story "${conflict.Name}" (${conflict.Id}) in the same feature already has this priority. Choose a different value.`,
-            }],
-          }
-        }
-      }
-    }
-    const response = await tp.setBusinessValue<any>({ id, entityType, priorityId })
-    if (response instanceof Error) {
-      return { content: [{ type: 'text' as const, text: `Failed to set business value on ${entityType} ${id}` }] }
-    }
-    return { content: [{ type: 'text' as const, text: JSON.stringify(response) }] }
-  }
+  async ({ id, entityType, priorityId }) =>
+    handleSetBusinessValue(tp, { id, entityType, priorityId })
 )
 
 server.registerTool(
