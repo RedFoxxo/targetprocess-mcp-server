@@ -83,7 +83,7 @@ describe('updateUserStoryCustomFields', () => {
       [
         { Name: 'BackEnd', Type: 'DropDown', Value: 'Doing' },
         { Name: 'FrontEnd', Type: 'DropDown', Value: 'Done' },
-        { Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' },
+        { Name: 'Figma', Type: 'URL', Value: { Url: 'https://www.figma.com/design/example', Label: 'design' } },
       ],
     )
 
@@ -101,7 +101,7 @@ describe('updateUserStoryCustomFields', () => {
       CustomFields: [
         { Name: 'BackEnd', Type: 'DropDown', Value: 'Doing' },
         { Name: 'FrontEnd', Type: 'DropDown', Value: 'Done' },
-        { Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' },
+        { Name: 'Figma', Type: 'URL', Value: { Url: 'https://www.figma.com/design/example', Label: 'design' } },
       ],
     })
   })
@@ -131,7 +131,12 @@ describe('updateUserStoryCustomFields', () => {
       .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ Id: 36194 }) })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ Effort: 0, CustomFields: [{ Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' }] }),
+        json: async () => ({
+          Effort: 0,
+          CustomFields: [{
+            Name: 'Figma', Type: 'URL', Value: { Url: 'https://www.figma.com/design/example', Label: 'design' },
+          }],
+        }),
       })
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(console, 'error').mockImplementation(() => { })
@@ -147,7 +152,9 @@ describe('updateUserStoryCustomFields', () => {
   it('requires a cleared field to remain present in read-back', async () => {
     const tp = await loadClient()
     stubCustomFieldUpdate(
-      [{ Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' }],
+      [{
+        Name: 'Figma', Type: 'URL', Value: { Url: 'https://www.figma.com/design/example', Label: 'design' },
+      }],
       [],
     )
 

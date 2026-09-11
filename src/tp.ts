@@ -344,7 +344,10 @@ export class TpClient {
     }
     const customFields = [...requested].map(([name, value]) => {
       const field = current.CustomFields.find(({ Name }) => Name === name)!
-      return { "Name": field.Name, "Type": field.Type, "Value": value }
+      const apiValue = name === "Figma" && value !== null
+        ? { "Url": value, "Label": "design" }
+        : value
+      return { "Name": field.Name, "Type": field.Type, "Value": apiValue }
     })
 
     const update = await this.postRaw<any, T>({
@@ -369,8 +372,11 @@ export class TpClient {
     for (const [name, value] of requested) {
       const field = verified.CustomFields.find(({ Name }) => Name === name)
       if (!field) return new Error(`Custom field "${name}" was missing from the update read-back`)
-      if (field.Value !== value) {
-        return new Error(`Custom field "${name}" was not persisted; expected ${JSON.stringify(value)}, received ${JSON.stringify(field.Value)}`)
+      const persistedValue = name === "Figma" && value !== null && typeof field.Value === "object" && field.Value !== null
+        ? (field.Value as { Url?: unknown }).Url
+        : field.Value
+      if (persistedValue !== value) {
+        return new Error(`Custom field "${name}" was not persisted; expected ${JSON.stringify(value)}, received ${JSON.stringify(persistedValue)}`)
       }
     }
     return verified
