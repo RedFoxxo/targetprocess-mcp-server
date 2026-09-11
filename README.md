@@ -148,6 +148,7 @@ Time Tracking
 
 Assignments
 - `assign_role` — Assign a user to a role (e.g. Business Analyst, Developer, QA Engineer) on a TP card (cardId, userId, roleId)
+- `remove_role_assignment` — Remove one exact user and role assignment from a TP card; refuses zero or ambiguous matches (cardId, userId, roleId)
 - `assign_role_to_feature` — Assign a user to a role on all user stories in a feature in one call (featureId, userId, roleId)
 - `get_assignment_roles` — List all available assignment roles with their IDs
 

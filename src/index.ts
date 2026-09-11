@@ -70,6 +70,7 @@ import { handleGetBugWorkflows } from "./handlers/get_bug_workflows.js";
 import { handleGetUserStoryWorkflows } from "./handlers/get_user_story_workflows.js";
 import { handleGetRelationTypes } from "./handlers/get_relation_types.js";
 import { handleGetVersion } from "./handlers/get_version.js";
+import { handleRemoveRoleAssignment } from "./handlers/remove_role_assignment.js";
 
 const server = new McpServer(
   {
@@ -1484,6 +1485,27 @@ server.registerTool(
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
     }
   }
+)
+
+server.registerTool(
+  'remove_role_assignment',
+  {
+    title: 'Remove a role assignment from a card',
+    description: 'Removes one exact user and role assignment from a TP card. The operation is rejected unless exactly one assignment matches.',
+    inputSchema: {
+      cardId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP card ID'),
+      userId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP user ID'),
+      roleId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP role ID — use get_assignment_roles to find the right ID'),
+    },
+  },
+  async ({ cardId, userId, roleId }) =>
+    handleRemoveRoleAssignment(tp, { cardId, userId, roleId })
 )
 
 server.registerTool(

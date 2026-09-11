@@ -1253,6 +1253,28 @@ export class TpClient {
     })
   }
 
+  async getRoleAssignments(cardId: string, userId: string, roleId: string): Promise<TpResponse<RoleAssignment> | Error | null> {
+    const assignableId = parseInt(cardId)
+    const generalUserId = parseInt(userId)
+    const assignmentRoleId = parseInt(roleId)
+    return this.get<TpResponse<RoleAssignment>>({
+      pathParam: ["Assignments"],
+      param: {
+        "format": "json",
+        "where": `Assignable.Id eq ${assignableId} and GeneralUser.Id eq ${generalUserId} and Role.Id eq ${assignmentRoleId}`,
+        "include": "[Id,Assignable[Id,Name],GeneralUser[Id,FirstName,LastName,Login,FullName],Role[Id,Name]]",
+        "take": 2,
+      },
+    })
+  }
+
+  async deleteRoleAssignment(assignmentId: string): Promise<TpResult<RoleAssignment>> {
+    return this.del<RoleAssignment>({
+      pathParam: ["Assignments", assignmentId],
+      param: { "format": "json" },
+    })
+  }
+
   async assignRoleToAllStoriesInFeature(featureId: string, userId: string, roleId: string): Promise<{ succeeded: RoleAssignment[]; failed: number[] }> {
     const storiesResponse = await this.getFeatureUserStories<{ items: { userStories: { items: { id: number; name: string }[] } }[] }>(featureId)
     const storyItems = storiesResponse?.items?.[0]?.userStories?.items ?? []
