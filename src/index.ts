@@ -39,6 +39,7 @@ import { handleGetEpicContent } from "./handlers/get_epic_content.js";
 import { handleUpdateEpic } from "./handlers/update_epic.js";
 import { handleGetEpicFeatures } from "./handlers/get_epic_features.js";
 import { handleCreateTask } from "./handlers/create_task.js";
+import { handleUpdateTask } from "./handlers/update_task.js";
 import { handleUpdateBug } from "./handlers/update_bug.js";
 import { handleGetInProgressTasksAndBugs } from "./handlers/get_in_progress_tasks_and_bugs.js";
 import { handleListMyUserStories } from "./handlers/list_my_user_stories.js";
@@ -1954,6 +1955,21 @@ server.registerTool(
   },
   async ({ title, userStoryId, description }) =>
     handleCreateTask(tp, { title, userStoryId, description })
+)
+
+server.registerTool(
+  'update_task',
+  {
+    title: 'Update a task',
+    description: 'Update an existing task description.',
+    inputSchema: {
+      id: z.string()
+        .describe('Task ID (e.g. 145789)'),
+      description: z.string()
+        .describe('Updated task description (format as HTML)'),
+    },
+  },
+  async ({ id, description }) => handleUpdateTask(tp, { id, description })
 )
 
 server.registerTool(

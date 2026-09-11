@@ -185,6 +185,7 @@ export interface Task {
   ResourceType: string
   Id: number
   Name: string
+  Description: string
   EntityState: EntityState
   UserStory: {
     ResourceType: string

@@ -1203,6 +1203,16 @@ export class TpClient {
     }, task) as T
   }
 
+  async updateTask<T>({ id, description }: { id: string, description: string }): Promise<T> {
+    return this.post<any, T>({
+      pathParam: ["Tasks"],
+      param: { "format": "json" },
+    }, {
+      "Id": id,
+      "Description": description,
+    }) as T
+  }
+
   async logTime<T>({
     entityId,
     entityType,
