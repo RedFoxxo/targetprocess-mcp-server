@@ -62,9 +62,30 @@ describe('updateUserStory effort', () => {
 })
 
 describe('updateUserStoryCustomFields', () => {
-  it('updates only the supported fields that are supplied', async () => {
+  function stubCustomFieldUpdate(currentFields: unknown[], updatedFields: unknown[], effort = 12) {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ Effort: effort, CustomFields: currentFields }) })
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ Id: 36194 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ Id: 36194, Effort: effort, CustomFields: updatedFields }) })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'error').mockImplementation(() => { })
+    return fetchMock
+  }
+
+  it('uses the v1 field shape, preserves effort, and verifies the update', async () => {
     const tp = await loadClient()
-    const fetchMock = stubSuccessfulUpdate()
+    const fetchMock = stubCustomFieldUpdate(
+      [
+        { Name: 'BackEnd', Type: 'DropDown', Value: 'To Do' },
+        { Name: 'FrontEnd', Type: 'DropDown', Value: 'To Do' },
+        { Name: 'Figma', Type: 'URL', Value: null },
+      ],
+      [
+        { Name: 'BackEnd', Type: 'DropDown', Value: 'Doing' },
+        { Name: 'FrontEnd', Type: 'DropDown', Value: 'Done' },
+        { Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' },
+      ],
+    )
 
     await tp.updateUserStoryCustomFields({
       id: '36194',
@@ -73,25 +94,66 @@ describe('updateUserStoryCustomFields', () => {
       figma: 'https://www.figma.com/design/example',
     })
 
-    expect(requestBody(fetchMock)).toEqual({
+    const options = fetchMock.mock.calls[1][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({
       Id: '36194',
-      customFields: [
-        { name: 'BackEnd', type: 'DropDown', value: 'Doing' },
-        { name: 'FrontEnd', type: 'DropDown', value: 'Done' },
-        { name: 'Figma', type: 'URL', value: 'https://www.figma.com/design/example' },
+      Effort: 12,
+      CustomFields: [
+        { Name: 'BackEnd', Type: 'DropDown', Value: 'Doing' },
+        { Name: 'FrontEnd', Type: 'DropDown', Value: 'Done' },
+        { Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' },
       ],
     })
   })
 
-  it('passes null to clear a supported custom field', async () => {
+  it('reports success as an error when read-back does not match', async () => {
     const tp = await loadClient()
-    const fetchMock = stubSuccessfulUpdate()
+    stubCustomFieldUpdate(
+      [{ Name: 'Figma', Type: 'URL', Value: null }],
+      [{ Name: 'Figma', Type: 'URL', Value: null }],
+    )
 
-    await tp.updateUserStoryCustomFields({ id: '36194', figma: null })
-
-    expect(requestBody(fetchMock)).toEqual({
-      Id: '36194',
-      customFields: [{ name: 'Figma', type: 'URL', value: null }],
+    const result = await tp.updateUserStoryCustomFields({
+      id: '36194', figma: 'https://www.figma.com/design/example',
     })
+
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('was not persisted')
+  })
+
+  it('reports an error when effort changes during the custom-field update', async () => {
+    const tp = await loadClient()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ Effort: 12, CustomFields: [{ Name: 'Figma', Type: 'URL', Value: null }] }),
+      })
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ Id: 36194 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ Effort: 0, CustomFields: [{ Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' }] }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'error').mockImplementation(() => { })
+
+    const result = await tp.updateUserStoryCustomFields({
+      id: '36194', figma: 'https://www.figma.com/design/example',
+    })
+
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('effort changed')
+  })
+
+  it('requires a cleared field to remain present in read-back', async () => {
+    const tp = await loadClient()
+    stubCustomFieldUpdate(
+      [{ Name: 'Figma', Type: 'URL', Value: 'https://www.figma.com/design/example' }],
+      [],
+    )
+
+    const result = await tp.updateUserStoryCustomFields({ id: '36194', figma: null })
+
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('missing from the update read-back')
   })
 })

@@ -52,6 +52,8 @@ User Stories
 
 Tasks
 - `get_in_progress_tasks_and_bugs` — Get all Tasks and Bugs currently in "In Progress" state assigned to a given user (userId)
+- `get_task` — Get a Task by ID (id)
+- `get_user_story_tasks` — List Tasks under a User Story for safe creation reconciliation (userStoryId)
 - `create_task` — Create a new task linked to a user story (title, userStoryId, optional description)
 - `update_task` — Update an existing task description or effort estimate (id, optional description, optional effort; use 0 to clear the estimate)
 - `list_my_user_stories` — List User Stories assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
@@ -75,7 +77,7 @@ Cards — Write
   > Resolve state name → ID via `get_bug_workflows` before passing `entityStateId`
 - `update_user_story` — Update an existing user story (id, optional title, optional description, optional projectId, optional teamId, optional entityStateId, optional effort; use 0 to clear the estimate)
   > Resolve state name → ID via `get_user_story_workflows` before passing `entityStateId`
-- `update_user_story_custom_fields` — Update only the `BackEnd` and `FrontEnd` dropdowns and the `Figma` URL on a user story; pass `null` to clear a field (id, optional backEnd, optional frontEnd, optional figma)
+- `update_user_story_custom_fields` — Update and verify only the `BackEnd` and `FrontEnd` dropdowns and the `Figma` URL while preserving effort; pass `null` to clear a field (id, optional backEnd, optional frontEnd, optional figma)
 - `create_card_relation` — Create a relation between two cards (masterId, slaveId, optional relationType name, default: "Depends on")
   > The Slave depends on the Master — the Master must be done first
   > `relationType` is matched by name against this instance's types; resolve exact names via `get_relation_types` (it's resolved to an ID before the API call, since TP rejects relation types passed by name)

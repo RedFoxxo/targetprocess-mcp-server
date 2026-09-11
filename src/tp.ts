@@ -85,7 +85,8 @@ export class TpClient {
         headers: this.headers
       });
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const body = typeof response.text === "function" ? await response.text() : ""
+        throw new Error(`HTTP error! status: ${response.status}${body ? `; body: ${body}` : ""}`);
       }
 
       return (await response.json()) as T
@@ -323,17 +324,56 @@ export class TpClient {
     backEnd?: string | null
     frontEnd?: string | null
     figma?: string | null
-  }): Promise<T> {
-    const customFields: Array<{ name: string; type: string; value: string | null }> = []
+  }): Promise<T | Error> {
+    const current = await this.get<{ Effort: number; CustomFields: Array<{ Name: string; Type: string; Value: unknown }> }>({
+      pathParam: ["UserStories", id],
+      param: { "format": "json", "include": "[Id,Effort,CustomFields]" },
+    })
+    if (current instanceof Error) return current
+    if (!current) return new Error(`User story ${id} was not found`)
 
-    if (backEnd !== undefined) customFields.push({ name: "BackEnd", type: "DropDown", value: backEnd })
-    if (frontEnd !== undefined) customFields.push({ name: "FrontEnd", type: "DropDown", value: frontEnd })
-    if (figma !== undefined) customFields.push({ name: "Figma", type: "URL", value: figma })
+    const requested = new Map<string, string | null>()
+    if (backEnd !== undefined) requested.set("BackEnd", backEnd)
+    if (frontEnd !== undefined) requested.set("FrontEnd", frontEnd)
+    if (figma !== undefined) requested.set("Figma", figma)
 
-    return this.post<any, T>({
-      pathParam: ["UserStories"],
+    for (const name of requested.keys()) {
+      if (!current.CustomFields.some(({ Name }) => Name === name)) {
+        return new Error(`Custom field "${name}" is not available on user story ${id}`)
+      }
+    }
+    const customFields = [...requested].map(([name, value]) => {
+      const field = current.CustomFields.find(({ Name }) => Name === name)!
+      return { "Name": field.Name, "Type": field.Type, "Value": value }
+    })
+
+    const update = await this.postRaw<any, T>({
+      pathParam: ["UserStories", id],
       param: { "format": "json" },
-    }, { "Id": id, customFields }) as T
+    }, { "Id": id, "Effort": current.Effort, "CustomFields": customFields })
+    if (!update.ok) {
+      return new Error(`HTTP status: ${update.status}; Response body: ${update.body}`)
+    }
+
+    const verified = await this.get<T & { Effort: number; CustomFields: Array<{ Name: string; Value: unknown }> }>({
+      pathParam: ["UserStories", id],
+      param: { "format": "json", "include": "[Id,Effort,CustomFields]" },
+    })
+    if (verified instanceof Error) return verified
+    if (!verified) return new Error(`User story ${id} could not be read back after updating custom fields`)
+
+    if (verified.Effort !== current.Effort) {
+      return new Error(`User story effort changed while updating custom fields; expected ${current.Effort}, received ${verified.Effort}`)
+    }
+
+    for (const [name, value] of requested) {
+      const field = verified.CustomFields.find(({ Name }) => Name === name)
+      if (!field) return new Error(`Custom field "${name}" was missing from the update read-back`)
+      if (field.Value !== value) {
+        return new Error(`Custom field "${name}" was not persisted; expected ${JSON.stringify(value)}, received ${JSON.stringify(field.Value)}`)
+      }
+    }
+    return verified
   }
 
   async setBusinessValue<T>({ id, entityType, priorityId }: { id: string, entityType: string, priorityId: string }): Promise<T> {
@@ -1163,11 +1203,35 @@ export class TpClient {
       pathParam: ["Tasks", taskId],
       param: {
         "format": "json",
-        "include": "[Id,Name,UserStory[Id,Name,Feature[Id,Name]]]",
+        "include": "[Id,Name,Description,Effort,Project[Id,Name],UserStory[Id,Name,Feature[Id,Name]]]",
       }
     }) as T
 
     return response
+  }
+
+  async getUserStoryTasks(userStoryId: string): Promise<Task[] | Error> {
+    const id = parseInt(userStoryId)
+    const tasks: Task[] = []
+    const take = 100
+    let skip = 0
+    while (true) {
+      const page = await this.get<TpResponse<Task>>({
+        pathParam: ["Tasks"],
+        param: {
+          "format": "json",
+          "where": `UserStory.Id eq ${id}`,
+          "include": "[Id,Name,Description,Effort,Project[Id,Name],UserStory[Id,Name]]",
+          take,
+          skip,
+        },
+      })
+      if (page instanceof Error) return page
+      if (!page?.Items?.length) return tasks
+      tasks.push(...page.Items)
+      if (!page.Next) return tasks
+      skip += take
+    }
   }
 
   async getBugWithRelations<T>(bugId: string): Promise<T> {
@@ -1182,11 +1246,21 @@ export class TpClient {
     return response
   }
 
-  async createTask<T>({ title, description, userStoryId }: { title: string, description?: string, userStoryId: string }): Promise<T> {
+  async createTask<T>({ title, description, userStoryId }: { title: string, description?: string, userStoryId: string }): Promise<TpResult<T>> {
+    const userStory = await this.get<{ Project?: { Id?: number } }>({
+      pathParam: ["UserStories", userStoryId],
+      param: { "format": "json", "include": "[Id,Project[Id]]" },
+    })
+    if (userStory instanceof Error) return { ok: false, status: 0, body: userStory.message }
+    const projectId = userStory?.Project?.Id
+    if (!projectId) {
+      return { ok: false, status: 0, body: `Cannot resolve the project for user story ${userStoryId}` }
+    }
+
     const task: Record<string, any> = {
       "Name": title,
       "Project": {
-        "Id": config.tp.projectId
+        "Id": projectId
       },
       "UserStory": {
         "Id": userStoryId
@@ -1197,10 +1271,10 @@ export class TpClient {
       task["Description"] = description
     }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["Tasks"],
       param: { "format": "json" },
-    }, task) as T
+    }, task)
   }
 
   async updateTask<T>({ id, description, effort }: { id: string, description?: string, effort?: number }): Promise<T> {

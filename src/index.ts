@@ -39,6 +39,7 @@ import { handleGetEpicContent } from "./handlers/get_epic_content.js";
 import { handleUpdateEpic } from "./handlers/update_epic.js";
 import { handleGetEpicFeatures } from "./handlers/get_epic_features.js";
 import { handleCreateTask } from "./handlers/create_task.js";
+import { handleGetTask, handleGetUserStoryTasks } from "./handlers/get_task.js";
 import { handleUpdateTask } from "./handlers/update_task.js";
 import { handleUpdateBug } from "./handlers/update_bug.js";
 import { handleGetInProgressTasksAndBugs } from "./handlers/get_in_progress_tasks_and_bugs.js";
@@ -752,7 +753,7 @@ server.registerTool(
       return {
         content: [{
           type: 'text',
-          text: `Failed to update custom fields on user story id: ${id}`
+          text: `Failed to update custom fields on user story id: ${id}\nError: ${response.message}`
         }],
         isError: true,
       }
@@ -1977,6 +1978,26 @@ server.registerTool(
   },
   async ({ title, userStoryId, description }) =>
     handleCreateTask(tp, { title, userStoryId, description })
+)
+
+server.registerTool(
+  'get_task',
+  {
+    title: 'Get a task',
+    description: 'Get a Task by its Targetprocess ID.',
+    inputSchema: { id: z.string().regex(/^\d+$/).describe('Task ID') },
+  },
+  async ({ id }) => handleGetTask(tp, id)
+)
+
+server.registerTool(
+  'get_user_story_tasks',
+  {
+    title: 'List tasks under a user story',
+    description: 'Lists Tasks under a User Story. Use this to reconcile task creation without retrying and risking duplicates.',
+    inputSchema: { userStoryId: z.string().regex(/^\d+$/).describe('User Story ID') },
+  },
+  async ({ userStoryId }) => handleGetUserStoryTasks(tp, userStoryId)
 )
 
 server.registerTool(

@@ -189,7 +189,7 @@ describe('handleCreateFeature', () => {
 
 describe('handleCreateTask', () => {
   it('returns created task on success', async () => {
-    vi.mocked(mockTp.createTask).mockResolvedValue({ Id: 800, Name: 'Write tests' } as any)
+    vi.mocked(mockTp.createTask).mockResolvedValue({ ok: true, data: { Id: 800, Name: 'Write tests' } } as any)
 
     const result = await handleCreateTask(mockTp, { title: 'Write tests', userStoryId: '145789' })
     const parsed = JSON.parse(result.content[0].text)
@@ -199,15 +199,17 @@ describe('handleCreateTask', () => {
   })
 
   it('returns failure message when null', async () => {
-    vi.mocked(mockTp.createTask).mockResolvedValue(new Error('Simulated failure') as any)
+    vi.mocked(mockTp.createTask).mockResolvedValue({ ok: false, status: 400, body: 'Simulated failure' } as any)
 
     const result = await handleCreateTask(mockTp, { title: 'Write tests', userStoryId: '145789' })
 
     expect(result.content[0].text).toContain('Failed to create task "Write tests"')
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('HTTP status: 400')
   })
 
   it('calls createTask with title and userStoryId', async () => {
-    vi.mocked(mockTp.createTask).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createTask).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateTask(mockTp, { title: 'Do work', userStoryId: '145789', description: 'desc' })
 
