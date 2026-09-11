@@ -58,3 +58,39 @@ describe('updateTask description', () => {
     expect(JSON.parse(result.content[0].text)).toMatchObject({ Id: 36195 })
   })
 })
+
+describe('updateTask effort', () => {
+  it('includes a supplied effort estimate without changing the description', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', effort: 5 })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({ Id: '36195', Effort: 5 })
+  })
+
+  it('includes zero so an estimate can be cleared', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', effort: 0 })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({ Id: '36195', Effort: 0 })
+  })
+
+  it('can update description and effort together', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', description: '<p>Updated</p>', effort: 3 })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({
+      Id: '36195',
+      Description: '<p>Updated</p>',
+      Effort: 3,
+    })
+  })
+})

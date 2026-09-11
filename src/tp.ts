@@ -1203,14 +1203,15 @@ export class TpClient {
     }, task) as T
   }
 
-  async updateTask<T>({ id, description }: { id: string, description: string }): Promise<T> {
+  async updateTask<T>({ id, description, effort }: { id: string, description?: string, effort?: number }): Promise<T> {
+    const task: Record<string, any> = { "Id": id }
+    if (description !== undefined) task["Description"] = description
+    if (effort !== undefined) task["Effort"] = effort
+
     return this.post<any, T>({
       pathParam: ["Tasks"],
       param: { "format": "json" },
-    }, {
-      "Id": id,
-      "Description": description,
-    }) as T
+    }, task) as T
   }
 
   async logTime<T>({

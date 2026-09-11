@@ -1961,15 +1961,28 @@ server.registerTool(
   'update_task',
   {
     title: 'Update a task',
-    description: 'Update an existing task description.',
+    description: 'Update an existing task description or effort estimate. Omitted fields are not changed.',
     inputSchema: {
       id: z.string()
         .describe('Task ID (e.g. 145789)'),
       description: z.string()
+        .optional()
         .describe('Updated task description (format as HTML)'),
+      effort: z.number()
+        .nonnegative()
+        .optional()
+        .describe('Updated effort estimate. Use 0 to clear the estimate'),
     },
   },
-  async ({ id, description }) => handleUpdateTask(tp, { id, description })
+  async ({ id, description, effort }) => {
+    if (description === undefined && effort === undefined) {
+      return {
+        content: [{ type: 'text' as const, text: 'No task fields were provided; nothing was changed.' }],
+        isError: true,
+      }
+    }
+    return handleUpdateTask(tp, { id, description, effort })
+  }
 )
 
 server.registerTool(

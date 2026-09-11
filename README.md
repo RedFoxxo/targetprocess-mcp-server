@@ -53,7 +53,7 @@ User Stories
 Tasks
 - `get_in_progress_tasks_and_bugs` — Get all Tasks and Bugs currently in "In Progress" state assigned to a given user (userId)
 - `create_task` — Create a new task linked to a user story (title, userStoryId, optional description)
-- `update_task` — Update an existing task description (id, description)
+- `update_task` — Update an existing task description or effort estimate (id, optional description, optional effort; use 0 to clear the estimate)
 - `list_my_user_stories` — List User Stories assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 - `list_my_bugs` — List Bugs assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 
