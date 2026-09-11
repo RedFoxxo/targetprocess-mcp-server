@@ -74,6 +74,7 @@ Cards — Write
   > Resolve state name → ID via `get_bug_workflows` before passing `entityStateId`
 - `update_user_story` — Update an existing user story (id, optional title, optional description, optional projectId, optional teamId, optional entityStateId, optional effort; use 0 to clear the estimate)
   > Resolve state name → ID via `get_user_story_workflows` before passing `entityStateId`
+- `update_user_story_custom_fields` — Update only the `BackEnd` and `FrontEnd` dropdowns and the `Figma` URL on a user story; pass `null` to clear a field (id, optional backEnd, optional frontEnd, optional figma)
 - `create_card_relation` — Create a relation between two cards (masterId, slaveId, optional relationType name, default: "Depends on")
   > The Slave depends on the Master — the Master must be done first
   > `relationType` is matched by name against this instance's types; resolve exact names via `get_relation_types` (it's resolved to an ID before the API call, since TP rejects relation types passed by name)

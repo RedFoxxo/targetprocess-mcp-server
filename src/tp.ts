@@ -313,6 +313,29 @@ export class TpClient {
     }, userStory) as T
   }
 
+  async updateUserStoryCustomFields<T>({
+    id,
+    backEnd,
+    frontEnd,
+    figma,
+  }: {
+    id: string
+    backEnd?: string | null
+    frontEnd?: string | null
+    figma?: string | null
+  }): Promise<T> {
+    const customFields: Array<{ name: string; type: string; value: string | null }> = []
+
+    if (backEnd !== undefined) customFields.push({ name: "BackEnd", type: "DropDown", value: backEnd })
+    if (frontEnd !== undefined) customFields.push({ name: "FrontEnd", type: "DropDown", value: frontEnd })
+    if (figma !== undefined) customFields.push({ name: "Figma", type: "URL", value: figma })
+
+    return this.post<any, T>({
+      pathParam: ["UserStories"],
+      param: { "format": "json" },
+    }, { "Id": id, customFields }) as T
+  }
+
   async setBusinessValue<T>({ id, entityType, priorityId }: { id: string, entityType: string, priorityId: string }): Promise<T> {
     const entity: Record<string, any> = { "Id": id, "Priority": { "Id": priorityId } }
     return this.post<any, T>({

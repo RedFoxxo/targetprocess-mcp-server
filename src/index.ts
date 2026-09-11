@@ -706,6 +706,66 @@ server.registerTool(
 )
 
 server.registerTool(
+  'update_user_story_custom_fields',
+  {
+    title: 'Update supported user story custom fields',
+    description: `Update only the verified BackEnd, FrontEnd, and Figma custom fields on a user story.
+      BackEnd and FrontEnd values must exactly match dropdown values configured in Targetprocess.
+      Pass null to clear a field. Omitted fields are not changed.`,
+    inputSchema: {
+      id: z.string()
+        .min(5)
+        .max(9)
+        .describe('User story card ID (e.g. 36194)'),
+      backEnd: z.string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe('BackEnd dropdown value, or null to clear it'),
+      frontEnd: z.string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe('FrontEnd dropdown value, or null to clear it'),
+      figma: z.string()
+        .url()
+        .nullable()
+        .optional()
+        .describe('Figma URL, or null to clear it'),
+    },
+  },
+  async ({ id, backEnd, frontEnd, figma }) => {
+    if (backEnd === undefined && frontEnd === undefined && figma === undefined) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'No custom fields were provided; nothing was changed.'
+        }],
+        isError: true,
+      }
+    }
+
+    const response = await tp.updateUserStoryCustomFields<any>({ id, backEnd, frontEnd, figma })
+    if (response instanceof Error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `Failed to update custom fields on user story id: ${id}`
+        }],
+        isError: true,
+      }
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(response)
+      }],
+    }
+  }
+)
+
+server.registerTool(
   'create_bug',
   {
     title: 'Create a new bug card',

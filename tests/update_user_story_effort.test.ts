@@ -60,3 +60,38 @@ describe('updateUserStory effort', () => {
     expect(requestBody(fetchMock)).toEqual({ Id: '36193', Name: 'Updated title' })
   })
 })
+
+describe('updateUserStoryCustomFields', () => {
+  it('updates only the supported fields that are supplied', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateUserStoryCustomFields({
+      id: '36194',
+      backEnd: 'Doing',
+      frontEnd: 'Done',
+      figma: 'https://www.figma.com/design/example',
+    })
+
+    expect(requestBody(fetchMock)).toEqual({
+      Id: '36194',
+      customFields: [
+        { name: 'BackEnd', type: 'DropDown', value: 'Doing' },
+        { name: 'FrontEnd', type: 'DropDown', value: 'Done' },
+        { name: 'Figma', type: 'URL', value: 'https://www.figma.com/design/example' },
+      ],
+    })
+  })
+
+  it('passes null to clear a supported custom field', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateUserStoryCustomFields({ id: '36194', figma: null })
+
+    expect(requestBody(fetchMock)).toEqual({
+      Id: '36194',
+      customFields: [{ name: 'Figma', type: 'URL', value: null }],
+    })
+  })
+})
