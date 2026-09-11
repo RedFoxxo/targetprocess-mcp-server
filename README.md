@@ -72,7 +72,7 @@ Cards — Write
 - `add_comment_with_user` — Post a comment to any card and mention a specific user (id, comment, user object from `get_users`)
 - `update_bug` — Update an existing bug (id, optional title, optional bugContent, optional origin, optional projectId, optional teamId, optional entityStateId)
   > Resolve state name → ID via `get_bug_workflows` before passing `entityStateId`
-- `update_user_story` — Update an existing user story (id, optional title, optional description, optional projectId, optional teamId, optional entityStateId)
+- `update_user_story` — Update an existing user story (id, optional title, optional description, optional projectId, optional teamId, optional entityStateId, optional effort; use 0 to clear the estimate)
   > Resolve state name → ID via `get_user_story_workflows` before passing `entityStateId`
 - `create_card_relation` — Create a relation between two cards (masterId, slaveId, optional relationType name, default: "Depends on")
   > The Slave depends on the Master — the Master must be done first

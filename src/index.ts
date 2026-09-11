@@ -675,13 +675,17 @@ server.registerTool(
       tags: z.string()
         .optional()
         .describe('Optional comma-separated tags to apply, e.g. "regression, mobile"'),
+      effort: z.number()
+        .nonnegative()
+        .optional()
+        .describe('Optional effort estimate. Use 0 to clear the estimate'),
       teamIterationId: z.string()
         .optional()
         .describe('Optional Team Iteration (sprint) ID — resolve it via "get_team_iterations" first'),
     },
   },
-  async ({ id, title, description, projectId, teamId, entityStateId, featureId, tags, teamIterationId }) => {
-    const response = await tp.updateUserStory<any>({ id, title, description, projectId, teamId, entityStateId, featureId, tags, teamIterationId });
+  async ({ id, title, description, projectId, teamId, entityStateId, featureId, tags, effort, teamIterationId }) => {
+    const response = await tp.updateUserStory<any>({ id, title, description, projectId, teamId, entityStateId, featureId, tags, effort, teamIterationId });
 
     if (response instanceof Error) {
       return {
