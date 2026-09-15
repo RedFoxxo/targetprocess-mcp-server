@@ -1338,6 +1338,21 @@ export class TpClient {
     })
   }
 
+  // Every user/role assignment on one card. getRoleAssignments answers "is
+  // this exact assignment present?"; this answers "who is on this card?",
+  // which is what surfaces the people TP assigns by default on creation.
+  async getCardAssignments(cardId: string): Promise<TpResponse<RoleAssignment> | Error | null> {
+    return this.get<TpResponse<RoleAssignment>>({
+      pathParam: ["Assignments"],
+      param: {
+        "format": "json",
+        "where": `Assignable.Id eq ${parseInt(cardId)}`,
+        "include": "[Id,Assignable[Id,Name],GeneralUser[Id,FirstName,LastName,Login,FullName],Role[Id,Name]]",
+        "take": 100,
+      },
+    })
+  }
+
   async deleteRoleAssignment(assignmentId: string): Promise<TpResult<RoleAssignment>> {
     return this.del<RoleAssignment>({
       pathParam: ["Assignments", assignmentId],

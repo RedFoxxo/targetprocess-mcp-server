@@ -157,6 +157,8 @@ Assignments
 - `remove_role_assignment` — Remove one exact user and role assignment from a TP card; refuses zero or ambiguous matches (cardId, userId, roleId)
 - `assign_role_to_feature` — Assign a user to a role on all user stories in a feature in one call (featureId, userId, roleId)
 - `get_assignment_roles` — List all available assignment roles with their IDs
+- `get_card_assignments` — List every user and role assigned to a card, with the assignment IDs `remove_role_assignment` needs (cardId)
+  > Use after creating a card to see who Targetprocess assigned by default. An empty list means nobody is assigned
 
 Effort
 - `get_role_efforts` — Get the effort booked per role (e.g. Developer, Designer) on a card, plus the total TP computes from them (entityId)
@@ -314,3 +316,4 @@ npx vitest            # watch mode
 | `workflow_tools.test.ts` | `get_processes`, `get_process_workflows`, `get_bug_workflows`, `get_user_story_workflows`, `get_relation_types`, `get_version` |
 | `role_effort.test.ts` | `get_role_efforts`, `set_role_effort` |
 | `get_task_workflows.test.ts` | `get_task_workflows` |
+| `get_card_assignments.test.ts` | `get_card_assignments` |

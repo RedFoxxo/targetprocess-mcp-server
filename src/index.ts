@@ -72,6 +72,7 @@ import { handleGetUserStoryWorkflows } from "./handlers/get_user_story_workflows
 import { handleGetRelationTypes } from "./handlers/get_relation_types.js";
 import { handleGetVersion } from "./handlers/get_version.js";
 import { handleRemoveRoleAssignment } from "./handlers/remove_role_assignment.js";
+import { handleGetCardAssignments } from "./handlers/get_card_assignments.js";
 import { handleGetRoleEfforts } from "./handlers/get_role_efforts.js";
 import { handleGetTaskWorkflows } from "./handlers/get_task_workflows.js";
 import { handleSetRoleEffort } from "./handlers/set_role_effort.js";
@@ -1467,6 +1468,20 @@ server.registerTool(
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
     }
   }
+)
+
+server.registerTool(
+  'get_card_assignments',
+  {
+    title: 'Get everyone assigned to a card',
+    description: 'Returns every user and role assigned to a TP card (User Story, Task, Bug, Feature), with the assignment ID needed by "remove_role_assignment". Use this after creating a card to see who Targetprocess assigned by default, and before assigning someone to see who is already there. An empty list means nobody is assigned.',
+    inputSchema: {
+      cardId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP card ID (e.g. 145789)'),
+    },
+  },
+  async ({ cardId }) => handleGetCardAssignments(tp, cardId)
 )
 
 server.registerTool(
