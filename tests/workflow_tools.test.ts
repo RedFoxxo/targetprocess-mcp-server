@@ -21,12 +21,41 @@ beforeEach(() => {
 
 describe('handleGetProcesses', () => {
   it('returns processes as JSON', async () => {
-    vi.mocked(mockTp.getProcesses).mockResolvedValue({ next: '', items: [{ id: 1, name: 'Scrum' }] } as any)
+    vi.mocked(mockTp.getProcesses).mockResolvedValue({ Next: '', Items: [{ Id: 1, Name: 'Scrum' }] } as any)
 
     const result = await handleGetProcesses(mockTp)
     const parsed = JSON.parse(result.content[0].text)
 
-    expect(parsed).toEqual([{ id: 1, name: 'Scrum' }])
+    expect(parsed).toEqual([{ Id: 1, Name: 'Scrum' }])
+  })
+
+  // Regression: the handler used to read the lowercase "items" of the v2
+  // shape while getProcesses() calls v1, so every lookup reported "No
+  // processes found". Drive the real client so the shapes cannot drift apart.
+  it('reads the shape the v1 client actually returns', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        Next: '',
+        Items: [{ ResourceType: 'Process', Id: 89, Name: 'Scrum', IsDefault: true, Description: null }],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'error').mockImplementation(() => { })
+    vi.stubEnv('TP_TOKEN', 'test-token')
+    vi.stubEnv('TP_BASE_URL', 'https://tp.example.com')
+    vi.resetModules()
+    const { TpClient } = await import('../src/tp.js')
+
+    const result = await handleGetProcesses(new TpClient())
+
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/Processes/')
+    expect(JSON.parse(result.content[0].text)).toEqual([
+      { ResourceType: 'Process', Id: 89, Name: 'Scrum', IsDefault: true, Description: null },
+    ])
+
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('returns failure message when null', async () => {
@@ -38,7 +67,7 @@ describe('handleGetProcesses', () => {
   })
 
   it('returns not found message when empty', async () => {
-    vi.mocked(mockTp.getProcesses).mockResolvedValue({ next: '', items: [] } as any)
+    vi.mocked(mockTp.getProcesses).mockResolvedValue({ Next: '', Items: [] } as any)
 
     const result = await handleGetProcesses(mockTp)
 

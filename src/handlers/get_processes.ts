@@ -2,7 +2,9 @@ import type { TpClient } from '../tp.js'
 import type * as TP from '../types.js'
 
 export async function handleGetProcesses(tp: TpClient) {
-  const response = await tp.getProcesses<TP.TpResponseV2<TP.ProcessV2>>()
+  // getProcesses() calls the v1 API, which returns a capitalised "Items"
+  // collection — not the lowercase "items" the v2 endpoints return.
+  const response = await tp.getProcesses<TP.TpResponse<TP.ProcessListItem>>()
 
   if (response instanceof Error) {
     return {
@@ -13,7 +15,7 @@ export async function handleGetProcesses(tp: TpClient) {
     }
   }
 
-  const items = response.items || []
+  const items = response.Items || []
   if (items.length === 0) {
     return {
       content: [{
