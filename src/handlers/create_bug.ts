@@ -15,18 +15,21 @@ export async function handleCreateBug(
     teamIterationId?: string
   },
 ) {
-  const bugResponse = await tp.createBugOnly<TP.Bug>(params)
+  const result = await tp.createBugOnly<TP.Bug>(params)
 
-  if (bugResponse instanceof Error) {
+  if (!result.ok) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Failed to create bug "${params.title}"\n Error: ${bugResponse.message}`
+        text: `Failed to create bug "${params.title}"\n` +
+          `HTTP status: ${result.status}\n` +
+          `Response body: ${result.body}`,
       }],
+      isError: true,
     }
   }
 
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(bugResponse) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result.data) }],
   }
 }

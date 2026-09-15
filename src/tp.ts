@@ -224,21 +224,39 @@ export class TpClient {
     return response
   }
 
-  async createBug<T>({ title, card, bugContent, origin, releaseId, projectId, teamId }: { title: string, card: { id: string, type: "UserStory" | "Bug" | "Feature" }, bugContent: string, origin?: string, releaseId?: string, projectId?: string, teamId?: string }): Promise<T> {
-    const bug = {
-      "Name": title,
-      "Project": {
-        "Id": projectId || config.tp.projectId
-      },
-      "assignedTeams": [{
-        "team": {
-          "id": teamId || config.tp.teamId
-        }
-      }],
-      "Description": bugContent,
-    } as any
+  // Works for any card type, so a bug can inherit the project of the user
+  // story, bug, or feature it was raised from.
+  private async getAssignableProjectId(cardId: string): Promise<number | null> {
+    const card = await this.get<{ Project?: { Id?: number } }>({
+      pathParam: ["Assignables", cardId],
+      param: { "format": "json", "include": "[Id,Project[Id]]" },
+    })
+    if (card instanceof Error) return null
+    return card?.Project?.Id ?? null
+  }
 
-    console.error(origin)
+  async createBug<T>({ title, card, bugContent, origin, releaseId, projectId, teamId }: { title: string, card: { id: string, type: "UserStory" | "Bug" | "Feature" }, bugContent: string, origin?: string, releaseId?: string, projectId?: string, teamId?: string }): Promise<TpResult<T>> {
+    // A bug belongs on the project of the card it was raised from, which is a
+    // better answer than the configured default and does not depend on
+    // TP_PROJECT_ID being set. Mirrors how createTask resolves its project.
+    const resolvedProjectId = projectId || await this.getAssignableProjectId(card.id) || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for ${card.type} ${card.id}; pass projectId or set TP_PROJECT_ID`,
+      }
+    }
+
+    const bug: Record<string, any> = {
+      "Name": title,
+      "Project": { "Id": resolvedProjectId },
+      "Description": bugContent,
+    }
+
+    // TP rejects an empty reference, so only send a team when there is one.
+    const resolvedTeamId = teamId || config.tp.teamId
+    if (resolvedTeamId) bug["assignedTeams"] = [{ "team": { "id": resolvedTeamId } }]
 
     if (origin) {
       bug["customFields"] = [{
@@ -256,10 +274,10 @@ export class TpClient {
       bug["Feature"] = { "Id": card.id }
     }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["bugs"],
       param: { "format": "json" },
-    }, bug) as T
+    }, bug)
   }
 
   async updateUserStorySubState<T>({
@@ -421,19 +439,27 @@ export class TpClient {
     }, bug) as T
   }
 
-  async createBugOnly<T>({ title, bugContent, origin, releaseId, projectId, teamId, entityStateId, tags, teamIterationId }: BugInputSchema): Promise<T> {
+  async createBugOnly<T>({ title, bugContent, origin, releaseId, projectId, teamId, entityStateId, tags, teamIterationId }: BugInputSchema): Promise<TpResult<T>> {
+    // No parent card to inherit from here, so an unset TP_PROJECT_ID has to be
+    // reported rather than posted as an empty reference.
+    const resolvedProjectId = projectId || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot create a bug without a project; pass projectId or set TP_PROJECT_ID`,
+      }
+    }
+
     const bug: Record<string, any> = {
       "Name": title,
-      "Project": {
-        "Id": projectId || config.tp.projectId
-      },
-      "assignedTeams": [{
-        "team": {
-          "id": teamId || config.tp.teamId
-        }
-      }],
+      "Project": { "Id": resolvedProjectId },
       "Description": bugContent,
     }
+
+    // TP rejects an empty reference, so only send a team when there is one.
+    const resolvedTeamId = teamId || config.tp.teamId
+    if (resolvedTeamId) bug["assignedTeams"] = [{ "team": { "id": resolvedTeamId } }]
 
     if (origin) {
       bug["customFields"] = [{
@@ -448,10 +474,10 @@ export class TpClient {
     if (tags) bug["Tags"] = tags
     if (teamIterationId) bug["TeamIteration"] = { "Id": teamIterationId }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["bugs"],
       param: { "format": "json" },
-    }, bug) as T
+    }, bug)
   }
 
   async createUserStory<T>({ title, description, featureId, releaseId, projectId, teamId, tags, teamIterationId }: { title: string, description?: string, featureId?: string, releaseId?: string, projectId?: string, teamId?: string, tags?: string, teamIterationId?: string }): Promise<T> {

@@ -317,3 +317,4 @@ npx vitest            # watch mode
 | `role_effort.test.ts` | `get_role_efforts`, `set_role_effort` |
 | `get_task_workflows.test.ts` | `get_task_workflows` |
 | `get_card_assignments.test.ts` | `get_card_assignments` |
+| `create_bug_project.test.ts` | `create_bug`, `create_bug_based_on_card` (project resolution) |

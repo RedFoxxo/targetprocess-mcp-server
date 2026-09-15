@@ -13,18 +13,21 @@ export async function handleCreateBugBasedOnCard(
     teamId?: string
   },
 ) {
-  const bugResponse = await tp.createBug<TP.Bug>(params)
+  const result = await tp.createBug<TP.Bug>(params)
 
-  if (bugResponse instanceof Error) {
+  if (!result.ok) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Failed to create bug "${params.title}"\n Error: ${bugResponse.message}`
+        text: `Failed to create bug "${params.title}" on ${params.card.type} ${params.card.id}\n` +
+          `HTTP status: ${result.status}\n` +
+          `Response body: ${result.body}`,
       }],
+      isError: true,
     }
   }
 
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(bugResponse) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result.data) }],
   }
 }
