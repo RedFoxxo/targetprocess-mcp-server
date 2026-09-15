@@ -189,6 +189,7 @@ export interface Task {
   Effort: number
   Project?: Project
   EntityState: EntityState
+  AssignedTeams?: TpResponse<TeamAssignment>
   UserStory: {
     ResourceType: string
     Id: number

@@ -1199,7 +1199,7 @@ export class TpClient {
       pathParam: ["Tasks", taskId],
       param: {
         "format": "json",
-        "include": "[Id,Name,Description,Effort,Project[Id,Name],UserStory[Id,Name,Feature[Id,Name]]]",
+        "include": "[Id,Name,Description,Effort,EntityState[Id,Name],Project[Id,Name],UserStory[Id,Name,Feature[Id,Name]],AssignedTeams[Id,Team[Id,Name]]]",
       }
     }) as T
 
@@ -1298,11 +1298,14 @@ export class TpClient {
     })
   }
 
-  async updateTask<T>({ id, description, effort, entityStateId }: { id: string, description?: string, effort?: number, entityStateId?: string }): Promise<T> {
+  async updateTask<T>({ id, description, effort, entityStateId, teamId }: { id: string, description?: string, effort?: number, entityStateId?: string, teamId?: string }): Promise<T> {
     const task: Record<string, any> = { "Id": id }
     if (description !== undefined) task["Description"] = description
     if (effort !== undefined) task["Effort"] = effort
     if (entityStateId) task["EntityState"] = { "Id": entityStateId }
+    // AssignedTeams is an add-only collection in the TP API, so this adds the
+    // team to the task rather than replacing the teams already assigned.
+    if (teamId) task["assignedTeams"] = [{ "team": { "id": teamId } }]
 
     return this.post<any, T>({
       pathParam: ["Tasks"],

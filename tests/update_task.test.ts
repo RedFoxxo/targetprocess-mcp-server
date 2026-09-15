@@ -129,3 +129,69 @@ describe('updateTask entity state', () => {
     expect(mockTp.updateTask).toHaveBeenCalledWith({ id: '36195', entityStateId: '742' })
   })
 })
+
+describe('updateTask team', () => {
+  it('adds the team through the assignedTeams collection', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', teamId: '447' })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({
+      Id: '36195',
+      assignedTeams: [{ team: { id: '447' } }],
+    })
+  })
+
+  it('does not touch the teams when the team is omitted', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', description: '<p>Updated</p>' })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).not.toHaveProperty('assignedTeams')
+  })
+
+  it('can set the state and add a team in one update', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', entityStateId: '742', teamId: '447' })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({
+      Id: '36195',
+      EntityState: { Id: '742' },
+      assignedTeams: [{ team: { id: '447' } }],
+    })
+  })
+
+  it('passes the team through the handler', async () => {
+    const mockTp = {
+      updateTask: vi.fn().mockResolvedValue({ Id: 36195 }),
+    } as unknown as TpClient
+
+    await handleUpdateTask(mockTp, { id: '36195', teamId: '447' })
+
+    expect(mockTp.updateTask).toHaveBeenCalledWith({ id: '36195', teamId: '447' })
+  })
+})
+
+describe('getTask', () => {
+  // The Task type has always declared EntityState, but the include never
+  // asked for it, so a task's state and teams could not be read back.
+  it('requests the state and assigned teams', async () => {
+    const tp = await loadClient()
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ Id: 36195 }) })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'error').mockImplementation(() => { })
+
+    await tp.getTask('36195')
+
+    const decoded = decodeURIComponent(String(fetchMock.mock.calls[0][0]))
+    expect(decoded).toContain('EntityState[Id,Name]')
+    expect(decoded).toContain('AssignedTeams[Id,Team[Id,Name]]')
+  })
+})

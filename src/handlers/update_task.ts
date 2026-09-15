@@ -3,7 +3,7 @@ import type * as TP from '../types.js'
 
 export async function handleUpdateTask(
   tp: TpClient,
-  params: { id: string; description?: string; effort?: number; entityStateId?: string },
+  params: { id: string; description?: string; effort?: number; entityStateId?: string; teamId?: string },
 ) {
   const response = await tp.updateTask<TP.Task>(params)
   if (response instanceof Error) {

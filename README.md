@@ -52,11 +52,12 @@ User Stories
 
 Tasks
 - `get_in_progress_tasks_and_bugs` — Get all Tasks and Bugs currently in "In Progress" state assigned to a given user (userId)
-- `get_task` — Get a Task by ID (id)
+- `get_task` — Get a Task by ID, including its workflow state and assigned teams (id)
 - `get_user_story_tasks` — List Tasks under a User Story for safe creation reconciliation (userStoryId)
 - `create_task` — Create a new task linked to a user story (title, userStoryId, optional description)
-- `update_task` — Update an existing task description, total effort estimate, or workflow state (id, optional description, optional effort, optional entityStateId; use 0 to clear the estimate)
-  > Resolve state name → ID via `get_task_workflows` before passing `entityStateId`
+- `update_task` — Update an existing task description, total effort estimate, workflow state, or assigned team (id, optional description, optional effort, optional entityStateId, optional teamId; use 0 to clear the estimate)
+  > Resolve state name → ID via `get_task_workflows`, and team name → ID via `get_teams`, before passing `entityStateId` / `teamId`
+  > `teamId` **adds** a team — teams already assigned to the task are kept
 - `get_task_workflows` — Get every workflow state a task can be moved to, resolved from the process of the task's own project (taskId)
 - `list_my_user_stories` — List User Stories assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 - `list_my_bugs` — List Bugs assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)

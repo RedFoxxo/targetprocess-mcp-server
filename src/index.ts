@@ -2040,8 +2040,10 @@ server.registerTool(
   'update_task',
   {
     title: 'Update a task',
-    description: `Update an existing task description, effort estimate, or workflow state. Omitted fields are not changed.
-      CRITICAL WORKFLOW: IF the user specified a state by name (e.g. "Coded") rather than an ID, call "get_task_workflows" for this task first and use the matching entityStateId.`,
+    description: `Update an existing task description, effort estimate, workflow state, or assigned team. Omitted fields are not changed.
+      CRITICAL WORKFLOW: Before calling this tool, you MUST follow these steps:
+        1) IF the user specified a state by name (e.g. "Coded") rather than an ID, call "get_task_workflows" for this task first and use the matching entityStateId;
+        2) IF the user specified a team by name, call "get_teams" to find the matching team and use its ID as teamId.`,
     inputSchema: {
       id: z.string()
         .describe('Task ID (e.g. 145789)'),
@@ -2056,16 +2058,20 @@ server.registerTool(
         .regex(/^\d+$/)
         .optional()
         .describe('Optional Entity State ID — if the user gave a state name, resolve it via "get_task_workflows" first'),
+      teamId: z.string()
+        .regex(/^\d+$/)
+        .optional()
+        .describe('Optional Team ID to add to the task — if the user gave a team name, resolve it via "get_teams" first. This ADDS a team; teams already assigned to the task are kept'),
     },
   },
-  async ({ id, description, effort, entityStateId }) => {
-    if (description === undefined && effort === undefined && entityStateId === undefined) {
+  async ({ id, description, effort, entityStateId, teamId }) => {
+    if (description === undefined && effort === undefined && entityStateId === undefined && teamId === undefined) {
       return {
         content: [{ type: 'text' as const, text: 'No task fields were provided; nothing was changed.' }],
         isError: true,
       }
     }
-    return handleUpdateTask(tp, { id, description, effort, entityStateId })
+    return handleUpdateTask(tp, { id, description, effort, entityStateId, teamId })
   }
 )
 
