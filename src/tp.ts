@@ -11,6 +11,7 @@ import {
   Task,
   LoggedUser,
   RoleAssignment,
+  RoleEffort,
   TestPlan,
   TestCase
 } from "./types.js";
@@ -1363,6 +1364,51 @@ export class TpClient {
     return this.get<T>({
       pathParam: ["Roles"],
       param: { "format": "json" },
+    })
+  }
+
+  // Per-role effort ("Developer", "Designer", ...) on a card. The card's own
+  // Effort field is the total TP computes from these rows, so a per-role
+  // estimate has to be written through the RoleEffort entity instead.
+  // Queried by Assignable id, which keeps this usable for any card type.
+  async getRoleEfforts(entityId: string): Promise<TpResponse<RoleEffort> | Error | null> {
+    return this.get<TpResponse<RoleEffort>>({
+      pathParam: ["RoleEfforts"],
+      param: {
+        "format": "json",
+        "where": `Assignable.Id eq ${parseInt(entityId)}`,
+        "include": "[Id,Effort,EffortCompleted,EffortToDo,TimeSpent,TimeRemain,Role[Id,Name],Assignable[Id,Name]]",
+        "take": 100,
+      },
+    })
+  }
+
+  async updateRoleEffort(roleEffortId: string, effort: number): Promise<TpResult<RoleEffort>> {
+    return this.postRaw<any, RoleEffort>({
+      pathParam: ["RoleEfforts", roleEffortId],
+      param: { "format": "json" },
+    }, { "Id": parseInt(roleEffortId), "Effort": effort })
+  }
+
+  // Only needed for a role that has no RoleEffort row on the card yet; TP
+  // creates them up front for the roles its process tracks effort for.
+  async createRoleEffort(entityId: string, roleId: string, effort: number): Promise<TpResult<RoleEffort>> {
+    return this.postRaw<any, RoleEffort>({
+      pathParam: ["RoleEfforts"],
+      param: { "format": "json" },
+    }, {
+      "Assignable": { "Id": parseInt(entityId) },
+      "Role": { "Id": parseInt(roleId) },
+      "Effort": effort,
+    })
+  }
+
+  // Reads the computed total through the Assignable resource so the caller
+  // does not have to know whether the card is a user story, task, or bug.
+  async getAssignableEffort(entityId: string): Promise<{ Id: number, Name: string, Effort: number } | Error | null> {
+    return this.get<{ Id: number, Name: string, Effort: number }>({
+      pathParam: ["Assignables", entityId],
+      param: { "format": "json", "include": "[Id,Name,Effort]" },
     })
   }
 

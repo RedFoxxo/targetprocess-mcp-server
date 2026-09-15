@@ -72,6 +72,8 @@ import { handleGetUserStoryWorkflows } from "./handlers/get_user_story_workflows
 import { handleGetRelationTypes } from "./handlers/get_relation_types.js";
 import { handleGetVersion } from "./handlers/get_version.js";
 import { handleRemoveRoleAssignment } from "./handlers/remove_role_assignment.js";
+import { handleGetRoleEfforts } from "./handlers/get_role_efforts.js";
+import { handleSetRoleEffort } from "./handlers/set_role_effort.js";
 import { handleSetBusinessValue } from "./handlers/set_business_value.js";
 
 const server = new McpServer(
@@ -659,7 +661,7 @@ server.registerTool(
       effort: z.number()
         .nonnegative()
         .optional()
-        .describe('Optional effort estimate. Use 0 to clear the estimate'),
+        .describe('Optional TOTAL effort estimate of the card. Use 0 to clear the estimate. If the user asks for the effort of a role (e.g. Developer, Designer), use "set_role_effort" instead — TP computes this total from the per-role efforts'),
       teamIterationId: z.string()
         .optional()
         .describe('Optional Team Iteration (sprint) ID — resolve it via "get_team_iterations" first'),
@@ -1507,6 +1509,47 @@ server.registerTool(
 )
 
 server.registerTool(
+  'get_role_efforts',
+  {
+    title: 'Get the per-role effort breakdown of a card',
+    description: 'Returns the effort booked per role (e.g. Developer, Designer) on a TP card (User Story, Task, Bug, Feature), together with the total effort TP computes from those roles. Use this before "set_role_effort" to see which roles the card tracks effort for and their IDs.',
+    inputSchema: {
+      entityId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP card ID (e.g. 145789)'),
+    },
+  },
+  async ({ entityId }) => handleGetRoleEfforts(tp, entityId)
+)
+
+server.registerTool(
+  'set_role_effort',
+  {
+    title: 'Set the effort of one or more roles on a card',
+    description: `Sets the effort estimate of specific roles (e.g. Developer, Designer) on a TP card (User Story, Task, Bug, Feature).
+      Use this instead of the "effort" field of "update_user_story" / "update_task": that field writes the total effort directly, while TP normally computes the total as the sum of the per-role efforts.
+      CRITICAL WORKFLOW: IF the user named a role instead of giving an ID, call "get_role_efforts" for the card (or "get_assignment_roles") first and use the matching role ID.
+      Roles omitted from the call keep their current effort.`,
+    inputSchema: {
+      entityId: z.string()
+        .regex(/^\d+$/)
+        .describe('TP card ID (e.g. 145789)'),
+      efforts: z.array(z.object({
+        roleId: z.string()
+          .regex(/^\d+$/)
+          .describe('TP role ID — resolve a role name via "get_role_efforts" or "get_assignment_roles" first'),
+        effort: z.number()
+          .nonnegative()
+          .describe('Effort for this role. Use 0 to clear this role\'s estimate'),
+      }))
+        .min(1)
+        .describe('One entry per role to set; each role may appear only once'),
+    },
+  },
+  async ({ entityId, efforts }) => handleSetRoleEffort(tp, { entityId, efforts })
+)
+
+server.registerTool(
   'get_user_story_bugs',
   {
     title: 'Get user story bugs',
@@ -1992,7 +2035,7 @@ server.registerTool(
       effort: z.number()
         .nonnegative()
         .optional()
-        .describe('Updated effort estimate. Use 0 to clear the estimate'),
+        .describe('Updated TOTAL effort estimate of the task. Use 0 to clear the estimate. If the user asks for the effort of a role (e.g. Developer, Designer), use "set_role_effort" instead — TP computes this total from the per-role efforts'),
     },
   },
   async ({ id, description, effort }) => {

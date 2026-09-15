@@ -55,7 +55,7 @@ Tasks
 - `get_task` — Get a Task by ID (id)
 - `get_user_story_tasks` — List Tasks under a User Story for safe creation reconciliation (userStoryId)
 - `create_task` — Create a new task linked to a user story (title, userStoryId, optional description)
-- `update_task` — Update an existing task description or effort estimate (id, optional description, optional effort; use 0 to clear the estimate)
+- `update_task` — Update an existing task description or total effort estimate (id, optional description, optional effort; use 0 to clear the estimate)
 - `list_my_user_stories` — List User Stories assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 - `list_my_bugs` — List Bugs assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 
@@ -153,6 +153,11 @@ Assignments
 - `remove_role_assignment` — Remove one exact user and role assignment from a TP card; refuses zero or ambiguous matches (cardId, userId, roleId)
 - `assign_role_to_feature` — Assign a user to a role on all user stories in a feature in one call (featureId, userId, roleId)
 - `get_assignment_roles` — List all available assignment roles with their IDs
+
+Effort
+- `get_role_efforts` — Get the effort booked per role (e.g. Developer, Designer) on a card, plus the total TP computes from them (entityId)
+- `set_role_effort` — Set the effort of one or more roles on a card; roles omitted keep their current effort (entityId, efforts: [{ roleId, effort }])
+  > The `effort` field of `update_user_story` / `update_task` writes the card's **total** effort. When a process tracks effort per role, set the role efforts instead and let TP compute the total.
 
 Developer Tools
 - `get_commit_message` — Returns a formatted commit message string for a task or bug ID (id, type: task | bug)
@@ -303,3 +308,4 @@ npx vitest            # watch mode
 | `test_plan_tools.test.ts` | `get_test_plan_by_id`, `get_test_plan_test_cases_by_id`, `get_test_plan_test_cases_with_steps_by_id` |
 | `test_case_tools.test.ts` | `get_test_case_by_id`, `update_test_case_by_id`, `add_test_case_step_by_id`, `update_test_case_step_by_id`, `delete_test_case_step_by_id` |
 | `workflow_tools.test.ts` | `get_processes`, `get_process_workflows`, `get_bug_workflows`, `get_user_story_workflows`, `get_relation_types`, `get_version` |
+| `role_effort.test.ts` | `get_role_efforts`, `set_role_effort` |

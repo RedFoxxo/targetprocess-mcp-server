@@ -856,6 +856,20 @@ export interface RoleAssignment {
   }
 }
 
+// Effort booked against one role on one card. TP computes the card's own
+// Effort field as the sum of these, so per-role estimates are written here.
+export interface RoleEffort {
+  ResourceType: string
+  Id: number
+  Effort: number
+  EffortCompleted: number
+  EffortToDo: number
+  TimeSpent: number
+  TimeRemain: number
+  Assignable: Assignable
+  Role: Role
+}
+
 export interface Context {
   ResourceType: string
   Acid: string
