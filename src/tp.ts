@@ -1119,43 +1119,29 @@ export class TpClient {
     }) as T
   }
 
-  async getUserStoryWorkflows<T>(): Promise<T> {
-    return this.get<T>({
-      pathParam: ["workflow"],
-      param: {
-        "format": "json",
-        "select": `{Id,Name,Process,EntityType,EntityStates.Select({Id,Name}) as EntityStates}`,
-        "where": `(process.id=${config.tp.processId} and entityType.name="userStory" and parentWorkflow=null)`,
-        "take": "1",
-      },
-      apiVersion: this.v2
-    }) as T
+  // Cards inherit the workflow of their project's process, so entity states
+  // are resolved from a project rather than from a configured process id.
+  async getProjectProcess(projectId: string): Promise<{ Id: number, Name: string, Process: { Id: number, Name: string } } | Error | null> {
+    return this.get<{ Id: number, Name: string, Process: { Id: number, Name: string } }>({
+      pathParam: ["Projects", projectId],
+      param: { "format": "json", "include": "[Id,Name,Process[Id,Name]]" },
+    })
   }
 
-  async getUserStoryWorkflowsWithSubStates<T>(): Promise<T> {
-    return this.get<T>({
-      pathParam: ["EntityState"],
+  // Filtered through Workflow because the EntityState.Process and
+  // EntityState.EntityType fields are deprecated. The entity type is a fixed
+  // union rather than free text so it cannot be injected into the filter.
+  async getEntityStates(processId: string, entityType: 'Task' | 'UserStory' | 'Bug'): Promise<TpResponse<WorkflowEntityState> | Error | null> {
+    return this.get<TpResponse<WorkflowEntityState>>({
+      pathParam: ["EntityStates"],
       param: {
         "format": "json",
-        "select": `{id,name,isInitial,isFinal,isDefaultFinal,isPlanned,workflow:{workflow.id,process:{workflow.process.id}},entityType:{entityType.name},subEntityStates:subEntityStates.Select({id,name,entityType:{entityType.name},isInitial,isFinal,isDefaultFinal,isPlanned})}`,
-        "where": `(parentEntityState==null and workflow.process.id in [${config.tp.processId}])`,
-        "take": "1000",
+        "where": `Workflow.Process.Id eq ${parseInt(processId)} and Workflow.EntityType.Name eq '${entityType}'`,
+        "include": "[Id,Name,NumericPriority,IsInitial,IsFinal,Workflow[Id,Name,ParentWorkflow[Id,Name]]]",
+        "orderBy": "NumericPriority",
+        "take": 100,
       },
-      apiVersion: this.v2
-    }) as T
-  }
-
-  async getBugWorkflows<T>(): Promise<T> {
-    return this.get<T>({
-      pathParam: ["workflow"],
-      param: {
-        "format": "json",
-        "select": `{Id,Name,Process,EntityType,EntityStates.Select({Id,Name}) as EntityStates}`,
-        "where": `(process.id=${config.tp.processId} and entityType.name="bug" and parentWorkflow=null)`,
-        "take": "1",
-      },
-      apiVersion: this.v2
-    }) as T
+    })
   }
 
   async getCardStatus<T>(cardId: string, resourceType: 'UserStory' | 'Bug' | 'Feature' = 'UserStory'): Promise<T> {
@@ -1280,21 +1266,6 @@ export class TpClient {
     return this.get<{ Id: number, Name: string, Project: { Id: number, Name: string, Process: { Id: number, Name: string } } }>({
       pathParam: ["Tasks", taskId],
       param: { "format": "json", "include": "[Id,Name,Project[Id,Name,Process[Id,Name]]]" },
-    })
-  }
-
-  // Filtered through Workflow rather than the deprecated EntityState.Process
-  // and EntityState.EntityType fields.
-  async getTaskEntityStates(processId: string): Promise<TpResponse<WorkflowEntityState> | Error | null> {
-    return this.get<TpResponse<WorkflowEntityState>>({
-      pathParam: ["EntityStates"],
-      param: {
-        "format": "json",
-        "where": `Workflow.Process.Id eq ${parseInt(processId)} and Workflow.EntityType.Name eq 'Task'`,
-        "include": "[Id,Name,NumericPriority,IsInitial,IsFinal,Workflow[Id,Name,ParentWorkflow[Id,Name]]]",
-        "orderBy": "NumericPriority",
-        "take": 100,
-      },
     })
   }
 

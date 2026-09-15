@@ -1,4 +1,5 @@
 import type { TpClient } from '../tp.js'
+import { readStatesForProcess } from './workflow_states.js'
 
 export async function handleGetTaskWorkflows(tp: TpClient, taskId: string) {
   const task = await tp.getTaskProcess(taskId)
@@ -20,23 +21,10 @@ export async function handleGetTaskWorkflows(tp: TpClient, taskId: string) {
     }
   }
 
-  const states = await tp.getTaskEntityStates(String(process.Id))
-  if (states instanceof Error || !states) {
+  const states = await readStatesForProcess(tp, process, 'Task')
+  if (states instanceof Error) {
     return {
-      content: [{
-        type: 'text' as const,
-        text: `Failed to read task states for process id: ${process.Id} (${process.Name})`,
-      }],
-      isError: true,
-    }
-  }
-
-  if (states.Items.length === 0) {
-    return {
-      content: [{
-        type: 'text' as const,
-        text: `No task states found for process id: ${process.Id} (${process.Name})`,
-      }],
+      content: [{ type: 'text' as const, text: states.message }],
       isError: true,
     }
   }
@@ -48,17 +36,8 @@ export async function handleGetTaskWorkflows(tp: TpClient, taskId: string) {
         taskId: Number(taskId),
         project: { id: task.Project.Id, name: task.Project.Name },
         process: { id: process.Id, name: process.Name },
-        states: states.Items.map(({ Id, Name, NumericPriority, IsInitial, IsFinal, Workflow }) => ({
-          entityStateId: Id,
-          name: Name,
-          numericPriority: NumericPriority,
-          isInitial: IsInitial,
-          isFinal: IsFinal,
-          workflowId: Workflow?.Id ?? null,
-          workflowName: Workflow?.Name ?? null,
-          // A sub-workflow belongs to a team rather than to the card itself.
-          isTeamWorkflow: Boolean(Workflow?.ParentWorkflow),
-        })),
+        entityType: 'Task',
+        states,
       }, null, 2),
     }],
   }

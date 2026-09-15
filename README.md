@@ -132,8 +132,9 @@ Test Case Workflows
 Processes & Workflows
 - `get_processes` — Get all Targetprocess processes (no params needed)
 - `get_process_workflows` — Get workflows for a specific process (processId)
-- `get_bug_workflows` — Get all bug entity states/workflows for the configured process (no params needed)
-- `get_user_story_workflows` — Get all user story entity states/workflows for the configured process (no params needed)
+- `get_bug_workflows` — Get every workflow state a Bug can be moved to, resolved from the given project's process (optional projectId, defaults to `TP_PROJECT_ID`)
+- `get_user_story_workflows` — Get every workflow state a User Story can be moved to, resolved from the given project's process (optional projectId, defaults to `TP_PROJECT_ID`)
+  > These and `get_task_workflows` all resolve the process from the project rather than a configured process ID, and flag team-workflow states with `isTeamWorkflow`
 
 Projects
 - `get_projects` — Get all Targetprocess projects (no params needed)

@@ -1855,17 +1855,29 @@ server.registerTool(
   'get_bug_workflows',
   {
     title: 'Get bug workflows',
-    description: 'Get all Targetprocess bug workflows',
+    description: 'Returns every workflow state a Bug can be moved to, resolved from the process of the given project. Defaults to the configured project. States belonging to a team workflow are flagged with isTeamWorkflow.',
+    inputSchema: {
+      projectId: z.string()
+        .regex(/^\d+$/)
+        .optional()
+        .describe('Optional Project ID — if the user gave a project name, resolve it via "get_projects" first. Defaults to the configured project'),
+    },
   },
-  async () => handleGetBugWorkflows(tp))
+  async ({ projectId }) => handleGetBugWorkflows(tp, projectId))
 
 server.registerTool(
   'get_user_story_workflows',
   {
     title: 'Get User Story workflows',
-    description: 'Get all Targetprocess user story workflows, with sub-states',
+    description: 'Returns every workflow state a User Story can be moved to, resolved from the process of the given project. Defaults to the configured project. States belonging to a team workflow are flagged with isTeamWorkflow.',
+    inputSchema: {
+      projectId: z.string()
+        .regex(/^\d+$/)
+        .optional()
+        .describe('Optional Project ID — if the user gave a project name, resolve it via "get_projects" first. Defaults to the configured project'),
+    },
   },
-  async () => handleGetUserStoryWorkflows(tp)
+  async ({ projectId }) => handleGetUserStoryWorkflows(tp, projectId)
 )
 
 server.registerTool(

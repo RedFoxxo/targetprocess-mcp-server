@@ -52,7 +52,7 @@ describe('task workflow API requests', () => {
     vi.spyOn(console, 'error').mockImplementation(() => { })
     const tp = await loadClient()
 
-    await tp.getTaskEntityStates('89')
+    await tp.getEntityStates('89', 'Task')
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toContain('/api/v1/EntityStates/')
@@ -72,17 +72,19 @@ describe('handleGetTaskWorkflows', () => {
   it('resolves the process from the task and lists its states', async () => {
     const mockTp = {
       getTaskProcess: vi.fn().mockResolvedValue(task),
-      getTaskEntityStates: vi.fn().mockResolvedValue({
+      getEntityStates: vi.fn().mockResolvedValue({
         Items: [state(740, 'Open', 12), state(742, 'Coded', 12)],
       }),
     } as unknown as TpClient
 
     const result = await handleGetTaskWorkflows(mockTp, '36400')
 
-    expect(mockTp.getTaskEntityStates).toHaveBeenCalledWith('89')
+    expect(mockTp.getEntityStates).toHaveBeenCalledWith('89', 'Task')
     const payload = JSON.parse(result.content[0].text)
     expect(payload.process).toEqual({ id: 89, name: 'Scrum' })
     expect(payload.project).toEqual({ id: 26080, name: 'SBP' })
+    // Reported by all three workflow tools so their payloads stay uniform.
+    expect(payload.entityType).toBe('Task')
     expect(payload.states).toEqual([
       { entityStateId: 740, name: 'Open', numericPriority: 740, isInitial: false, isFinal: false, workflowId: 12, workflowName: 'Task Workflow', isTeamWorkflow: false },
       { entityStateId: 742, name: 'Coded', numericPriority: 742, isInitial: false, isFinal: false, workflowId: 12, workflowName: 'Task Workflow', isTeamWorkflow: false },
@@ -92,7 +94,7 @@ describe('handleGetTaskWorkflows', () => {
   it('flags states that belong to a team sub-workflow', async () => {
     const mockTp = {
       getTaskProcess: vi.fn().mockResolvedValue(task),
-      getTaskEntityStates: vi.fn().mockResolvedValue({
+      getEntityStates: vi.fn().mockResolvedValue({
         Items: [state(742, 'Coded', 12), state(801, 'Coded', 33, { Id: 12, Name: 'Task Workflow' })],
       }),
     } as unknown as TpClient
@@ -106,12 +108,12 @@ describe('handleGetTaskWorkflows', () => {
   it('reports a task that could not be read', async () => {
     const mockTp = {
       getTaskProcess: vi.fn().mockResolvedValue(new Error('boom')),
-      getTaskEntityStates: vi.fn(),
+      getEntityStates: vi.fn(),
     } as unknown as TpClient
 
     const result = await handleGetTaskWorkflows(mockTp, '36400')
 
-    expect(mockTp.getTaskEntityStates).not.toHaveBeenCalled()
+    expect(mockTp.getEntityStates).not.toHaveBeenCalled()
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('Failed to read task id: 36400')
   })
@@ -119,12 +121,12 @@ describe('handleGetTaskWorkflows', () => {
   it('reports a project with no process rather than querying states', async () => {
     const mockTp = {
       getTaskProcess: vi.fn().mockResolvedValue({ Id: 36400, Project: { Id: 26080, Name: 'SBP' } }),
-      getTaskEntityStates: vi.fn(),
+      getEntityStates: vi.fn(),
     } as unknown as TpClient
 
     const result = await handleGetTaskWorkflows(mockTp, '36400')
 
-    expect(mockTp.getTaskEntityStates).not.toHaveBeenCalled()
+    expect(mockTp.getEntityStates).not.toHaveBeenCalled()
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('has no project process')
   })
@@ -132,12 +134,12 @@ describe('handleGetTaskWorkflows', () => {
   it('reports an empty state list instead of returning an empty payload', async () => {
     const mockTp = {
       getTaskProcess: vi.fn().mockResolvedValue(task),
-      getTaskEntityStates: vi.fn().mockResolvedValue({ Items: [] }),
+      getEntityStates: vi.fn().mockResolvedValue({ Items: [] }),
     } as unknown as TpClient
 
     const result = await handleGetTaskWorkflows(mockTp, '36400')
 
     expect(result.isError).toBe(true)
-    expect(result.content[0].text).toContain('No task states found for process id: 89')
+    expect(result.content[0].text).toContain('No Task states found for process id: 89')
   })
 })

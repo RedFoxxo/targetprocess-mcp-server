@@ -10,8 +10,8 @@ import type { TpClient } from '../src/tp.js'
 const mockTp = {
   getProcesses: vi.fn(),
   getProcessWorkflows: vi.fn(),
-  getBugWorkflows: vi.fn(),
-  getUserStoryWorkflowsWithSubStates: vi.fn(),
+  getProjectProcess: vi.fn(),
+  getEntityStates: vi.fn(),
   getRelationTypes: vi.fn(),
 } as unknown as TpClient
 
@@ -103,93 +103,101 @@ describe('handleGetProcessWorkflows', () => {
   })
 })
 
-describe('handleGetBugWorkflows', () => {
-  it('returns mapped bug workflows', async () => {
-    vi.mocked(mockTp.getBugWorkflows).mockResolvedValue({
-      next: '',
-      items: [{
-        id: 1,
-        name: 'Bug Workflow',
-        process: 'Scrum',
-        entityType: 'Bug',
-        entityStates: [{ id: 10, name: 'Open' }],
-      }],
-    } as any)
+function stateItem(Id, Name, workflowId, parent = null) {
+  return {
+    Id,
+    Name,
+    NumericPriority: Id,
+    IsInitial: false,
+    IsFinal: false,
+    Workflow: { Id: workflowId, Name: 'Project workflow', ParentWorkflow: parent },
+  }
+}
 
-    const result = await handleGetBugWorkflows(mockTp)
+const project = { Id: 26080, Name: 'SBP', Process: { Id: 13, Name: 'Mamami 2025' } }
+
+describe('handleGetBugWorkflows', () => {
+  it('resolves the process from the project and lists bug states', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue(project as any)
+    vi.mocked(mockTp.getEntityStates).mockResolvedValue({ Items: [stateItem(20, 'Open', 203)] } as any)
+
+    const result = await handleGetBugWorkflows(mockTp, '26080')
     const parsed = JSON.parse(result.content[0].text)
 
-    expect(parsed).toEqual([{
-      id: 1,
-      name: 'Bug Workflow',
-      processId: 'Scrum',
-      entityType: 'Bug',
-      entityStates: [{ id: 10, name: 'Open' }],
+    expect(mockTp.getEntityStates).toHaveBeenCalledWith('13', 'Bug')
+    expect(parsed.process).toEqual({ id: 13, name: 'Mamami 2025' })
+    expect(parsed.entityType).toBe('Bug')
+    expect(parsed.states).toEqual([{
+      entityStateId: 20, name: 'Open', numericPriority: 20, isInitial: false, isFinal: false,
+      workflowId: 203, workflowName: 'Project workflow', isTeamWorkflow: false,
     }])
   })
 
-  it('returns failure message when null', async () => {
-    vi.mocked(mockTp.getBugWorkflows).mockResolvedValue(new Error('Simulated failure') as any)
+  it('reports a project that could not be read', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue(new Error('Simulated failure') as any)
 
-    const result = await handleGetBugWorkflows(mockTp)
+    const result = await handleGetBugWorkflows(mockTp, '26080')
 
-    expect(result.content[0].text).toContain('Failed to get bug entity statuses')
+    expect(mockTp.getEntityStates).not.toHaveBeenCalled()
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Failed to read project id: 26080')
   })
 
-  it('returns not found message when empty', async () => {
-    vi.mocked(mockTp.getBugWorkflows).mockResolvedValue({ next: '', items: [] } as any)
+  it('reports an empty state list', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue(project as any)
+    vi.mocked(mockTp.getEntityStates).mockResolvedValue({ Items: [] } as any)
 
-    const result = await handleGetBugWorkflows(mockTp)
+    const result = await handleGetBugWorkflows(mockTp, '26080')
 
-    expect(result.content[0].text).toContain('No status data found for workflows')
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('No Bug states found for process id: 13')
   })
 })
 
 describe('handleGetUserStoryWorkflows', () => {
-  it('returns only UserStory workflows, mapped with sub-states', async () => {
-    vi.mocked(mockTp.getUserStoryWorkflowsWithSubStates).mockResolvedValue({
-      next: '',
-      items: [
-        {
-          id: 1,
-          workflow: { process: { id: 5 } },
-          entityType: { name: 'UserStory' },
-          subEntityStates: [{ id: 10, name: 'In Progress' }],
-        },
-        {
-          id: 2,
-          workflow: { process: { id: 5 } },
-          entityType: { name: 'Bug' },
-          subEntityStates: [{ id: 20, name: 'Open' }],
-        },
-      ],
-    } as any)
+  it('resolves the process from the project and lists user story states', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue(project as any)
+    vi.mocked(mockTp.getEntityStates).mockResolvedValue({ Items: [stateItem(10, 'In Progress', 203)] } as any)
 
-    const result = await handleGetUserStoryWorkflows(mockTp)
+    const result = await handleGetUserStoryWorkflows(mockTp, '26080')
     const parsed = JSON.parse(result.content[0].text)
 
-    expect(parsed).toEqual([{
-      id: 1,
-      processId: 5,
-      entityType: 'UserStory',
-      entityStates: [{ id: 10, name: 'In Progress' }],
-    }])
+    expect(mockTp.getEntityStates).toHaveBeenCalledWith('13', 'UserStory')
+    expect(parsed.entityType).toBe('UserStory')
+    expect(parsed.states[0].name).toBe('In Progress')
   })
 
-  it('returns failure message when null', async () => {
-    vi.mocked(mockTp.getUserStoryWorkflowsWithSubStates).mockResolvedValue(new Error('Simulated failure') as any)
+  // Regression: these lookups used to filter on a hardcoded TP_PROCESS_ID
+  // default of "89", so they silently queried a process that was not the
+  // user's and always came back empty.
+  it('flags team sub-workflow states instead of pinning a process id', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue(project as any)
+    vi.mocked(mockTp.getEntityStates).mockResolvedValue({
+      Items: [stateItem(10, 'In Progress', 203), stateItem(11, 'In Progress', 310, { Id: 203, Name: 'Project workflow' })],
+    } as any)
 
-    const result = await handleGetUserStoryWorkflows(mockTp)
+    const result = await handleGetUserStoryWorkflows(mockTp, '26080')
+    const parsed = JSON.parse(result.content[0].text)
 
-    expect(result.content[0].text).toContain('Failed to get user story entity statuses')
+    expect(parsed.states.map((s) => s.isTeamWorkflow)).toEqual([false, true])
   })
 
-  it('returns not found message when empty', async () => {
-    vi.mocked(mockTp.getUserStoryWorkflowsWithSubStates).mockResolvedValue({ next: '', items: [] } as any)
+  it('reports a project with no process', async () => {
+    vi.mocked(mockTp.getProjectProcess).mockResolvedValue({ Id: 26080, Name: 'SBP' } as any)
 
-    const result = await handleGetUserStoryWorkflows(mockTp)
+    const result = await handleGetUserStoryWorkflows(mockTp, '26080')
 
-    expect(result.content[0].text).toContain('No status data found for workflows')
+    expect(mockTp.getEntityStates).not.toHaveBeenCalled()
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('has no process')
+  })
+
+  it('asks for a project when none is given and none is configured', async () => {
+    const result = await handleGetUserStoryWorkflows(mockTp, '')
+
+    expect(mockTp.getProjectProcess).not.toHaveBeenCalled()
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('TP_PROJECT_ID is not configured')
   })
 })
 
