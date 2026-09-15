@@ -480,12 +480,28 @@ export class TpClient {
     }, bug)
   }
 
-  async createUserStory<T>({ title, description, featureId, releaseId, projectId, teamId, tags, teamIterationId }: { title: string, description?: string, featureId?: string, releaseId?: string, projectId?: string, teamId?: string, tags?: string, teamIterationId?: string }): Promise<T> {
+  async createUserStory<T>({ title, description, featureId, releaseId, projectId, teamId, tags, teamIterationId }: { title: string, description?: string, featureId?: string, releaseId?: string, projectId?: string, teamId?: string, tags?: string, teamIterationId?: string }): Promise<TpResult<T>> {
+    // A story under a feature belongs on that feature's project, so the parent
+    // is preferred over the configured default.
+    const resolvedProjectId = projectId
+      || (featureId ? await this.getAssignableProjectId(featureId) : null)
+      || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for user story "${title}"; pass projectId or set TP_PROJECT_ID`,
+      }
+    }
+
     const userStory: Record<string, any> = {
       "Name": title,
-      "Project": { "Id": projectId || config.tp.projectId },
-      "assignedTeams": [{ "team": { "id": teamId || config.tp.teamId } }],
+      "Project": { "Id": resolvedProjectId },
     }
+
+    // TP rejects an empty reference, so only send a team when there is one.
+    const resolvedTeamId = teamId || config.tp.teamId
+    if (resolvedTeamId) userStory["assignedTeams"] = [{ "team": { "id": resolvedTeamId } }]
 
     if (description) userStory["Description"] = description
     if (featureId) userStory["Feature"] = { "Id": featureId }
@@ -493,10 +509,10 @@ export class TpClient {
     if (tags) userStory["Tags"] = tags
     if (teamIterationId) userStory["TeamIteration"] = { "Id": teamIterationId }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["UserStories"],
       param: { "format": "json" },
-    }, userStory) as T
+    }, userStory)
   }
 
   async getTeamIterations<T>({ teamId }: { teamId?: string } = {}): Promise<T> {
@@ -543,36 +559,63 @@ export class TpClient {
     }) as T
   }
 
-  async createEpic<T>({ title, description, releaseId, projectId }: { title: string, description?: string, releaseId?: string, projectId?: string }): Promise<T | null> {
+  async createEpic<T>({ title, description, releaseId, projectId }: { title: string, description?: string, releaseId?: string, projectId?: string }): Promise<TpResult<T>> {
+    // An epic has no parent card to inherit from, so an unset TP_PROJECT_ID
+    // has to be reported rather than posted as an empty reference.
+    const resolvedProjectId = projectId || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot create an epic without a project; pass projectId or set TP_PROJECT_ID`,
+      }
+    }
+
     const epic: Record<string, any> = {
       "Name": title,
-      "Project": { "Id": projectId || config.tp.projectId },
+      "Project": { "Id": resolvedProjectId },
     }
 
     if (description) epic["Description"] = description
     if (releaseId) epic["Release"] = { "Id": releaseId }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["Epics"],
       param: { "format": "json" },
     }, epic)
   }
 
-  async createFeature<T>({ title, description, epicId, releaseId, projectId, teamId }: { title: string, description?: string, epicId?: string, releaseId?: string, projectId?: string, teamId?: string }): Promise<T> {
+  async createFeature<T>({ title, description, epicId, releaseId, projectId, teamId }: { title: string, description?: string, epicId?: string, releaseId?: string, projectId?: string, teamId?: string }): Promise<TpResult<T>> {
+    // A feature under an epic belongs on that epic's project, so the parent is
+    // preferred over the configured default.
+    const resolvedProjectId = projectId
+      || (epicId ? await this.getAssignableProjectId(epicId) : null)
+      || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for feature "${title}"; pass projectId or set TP_PROJECT_ID`,
+      }
+    }
+
     const feature: Record<string, any> = {
       "Name": title,
-      "Project": { "Id": projectId || config.tp.projectId },
-      "assignedTeams": [{ "team": { "id": teamId || config.tp.teamId } }],
+      "Project": { "Id": resolvedProjectId },
     }
+
+    // TP rejects an empty reference, so only send a team when there is one.
+    const resolvedTeamId = teamId || config.tp.teamId
+    if (resolvedTeamId) feature["assignedTeams"] = [{ "team": { "id": resolvedTeamId } }]
 
     if (description) feature["Description"] = description
     if (epicId) feature["Epic"] = { "Id": epicId }
     if (releaseId) feature["Release"] = { "Id": releaseId }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["Features"],
       param: { "format": "json" },
-    }, feature) as T
+    }, feature)
   }
 
   async updateFeature<T>({
@@ -605,46 +648,75 @@ export class TpClient {
     }, feature) as T
   }
 
-  async createBugBasedOnUserStory<T>(title: string, userStoryId: string, bugContent: string): Promise<T> {
-    const bug = {
+  // Currently unused; kept in step with the other creators so it does not
+  // reintroduce the empty-project defect if it is ever wired up to a tool.
+  async createBugBasedOnUserStory<T>(title: string, userStoryId: string, bugContent: string): Promise<TpResult<T>> {
+    const resolvedProjectId = await this.getAssignableProjectId(userStoryId) || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for user story ${userStoryId}; set TP_PROJECT_ID`,
+      }
+    }
+
+    const bug: Record<string, any> = {
       "Name": title,
-      "Project": { "Id": config.tp.projectId },
+      "Project": { "Id": resolvedProjectId },
       "UserStory": { "Id": userStoryId },
-      "assignedTeams": [{
-        "team": {
-          "id": config.tp.teamId
-        }
-      }],
       "Description": bugContent,
     }
 
-    return this.post<any, T>({
+    // TP rejects an empty reference, so only send a team when there is one.
+    if (config.tp.teamId) bug["assignedTeams"] = [{ "team": { "id": config.tp.teamId } }]
+
+    return this.postRaw<any, T>({
       pathParam: ["bugs"],
       param: { "format": "json" },
-    }, bug) as T
+    }, bug)
   }
 
-  async createTestCase<T>(name: string, description: string, testPlanId: string): Promise<T> {
+  async createTestCase<T>(name: string, description: string, testPlanId: string): Promise<TpResult<T>> {
+    // A test case belongs on the project of the test plan it is added to.
+    const resolvedProjectId = await this.getAssignableProjectId(testPlanId) || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for test plan ${testPlanId}; set TP_PROJECT_ID`,
+      }
+    }
+
     const testCase = {
       "Name": name,
-      "Project": { "Id": config.tp.projectId },
+      "Project": { "Id": resolvedProjectId },
       "Description": description,
       "TestPlans": [{
         "Id": testPlanId
       }],
     }
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["testCases"],
       param: { "format": "json" },
-    }, testCase) as T
+    }, testCase)
   }
 
-  async createTestPlan<T>(title: string, resourceId: string, resourceType: 'UserStory' | 'Bug' | 'Feature' = 'UserStory', options?: { description?: string; startDate?: string; endDate?: string }): Promise<T> {
+  async createTestPlan<T>(title: string, resourceId: string, resourceType: 'UserStory' | 'Bug' | 'Feature' = 'UserStory', options?: { description?: string; startDate?: string; endDate?: string }): Promise<TpResult<T>> {
+    // A test plan belongs on the project of the card it covers.
+    const resolvedProjectId = await this.getAssignableProjectId(resourceId) || config.tp.projectId
+    if (!resolvedProjectId) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Cannot resolve the project for ${resourceType} ${resourceId}; set TP_PROJECT_ID`,
+      }
+    }
+
     const testPlan: Record<string, any> = {
       "Name": `Test Plan: ${title}`,
       "Project": {
-        "Id": config.tp.projectId
+        "Id": resolvedProjectId
       },
       "LinkedGeneral": {
         "ResourceType": "General",
@@ -670,10 +742,10 @@ export class TpClient {
     if (options?.startDate) testPlan["StartDate"] = options.startDate
     if (options?.endDate) testPlan["EndDate"] = options.endDate
 
-    return this.post<any, T>({
+    return this.postRaw<any, T>({
       pathParam: ["testPlans"],
       param: { "format": "json" },
-    }, testPlan) as T
+    }, testPlan)
   }
 
   async getUser<T>(userId: string): Promise<T> {

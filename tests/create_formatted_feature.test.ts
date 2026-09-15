@@ -20,7 +20,7 @@ beforeEach(() => {
 
 describe('handleCreateFormattedFeature', () => {
   it('returns created feature on success', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 148636, Name: 'AI-assisted search' } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 148636, Name: 'AI-assisted search' } } as any)
 
     const result = await handleCreateFormattedFeature(mockTp, baseParams)
     const parsed = JSON.parse(result.content[0].text)
@@ -29,7 +29,7 @@ describe('handleCreateFormattedFeature', () => {
   })
 
   it('returns failure message when null', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue(new Error('Simulated failure') as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: false, status: 400, body: 'Simulated failure' } as any)
 
     const result = await handleCreateFormattedFeature(mockTp, baseParams)
 
@@ -37,7 +37,7 @@ describe('handleCreateFormattedFeature', () => {
   })
 
   it('always includes the Non-Functional Requirements table', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateFormattedFeature(mockTp, baseParams)
 
@@ -48,7 +48,7 @@ describe('handleCreateFormattedFeature', () => {
   })
 
   it('omits optional sections when not provided', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateFormattedFeature(mockTp, baseParams)
 
@@ -61,7 +61,7 @@ describe('handleCreateFormattedFeature', () => {
   })
 
   it('includes Scope, Cross-Cutting Scenarios, Child Stories, and Open Questions when provided', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateFormattedFeature(mockTp, {
       ...baseParams,
@@ -84,7 +84,7 @@ describe('handleCreateFormattedFeature', () => {
   })
 
   it('calls createFeature with title and linking IDs', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateFormattedFeature(mockTp, { ...baseParams, epicId: '148813', releaseId: '145200', teamId: '20' })
 

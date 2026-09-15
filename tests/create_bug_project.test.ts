@@ -168,3 +168,85 @@ describe('createBugOnly project resolution', () => {
     expect(body).not.toHaveProperty('assignedTeams')
   })
 })
+
+// The same defect as createBug: an unset TP_PROJECT_ID produced
+// Project: { Id: "" } and an empty assignedTeams entry on every creator.
+describe('createUserStory project resolution', () => {
+  it('inherits the project of the parent feature', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubFetch(
+      { ok: true, json: { Id: 36193, Project: { Id: 26080 } } },
+      { ok: true, json: { Id: 700 } },
+    )
+
+    await tp.createUserStory({ title: 'story', featureId: '36193' })
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/Assignables/36193/')
+    const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))
+    expect(body.Project).toEqual({ Id: 26080 })
+    expect(body).not.toHaveProperty('assignedTeams')
+  })
+
+  it('fails before posting when there is no feature and no configured project', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubFetch({ ok: true, json: { Id: 700 } })
+
+    const result = await tp.createUserStory({ title: 'story' })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.body).toContain('Cannot resolve the project for user story "story"')
+  })
+})
+
+describe('createFeature project resolution', () => {
+  it('inherits the project of the parent epic', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubFetch(
+      { ok: true, json: { Id: 500, Project: { Id: 26080 } } },
+      { ok: true, json: { Id: 800 } },
+    )
+
+    await tp.createFeature({ title: 'feature', epicId: '500' })
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/Assignables/500/')
+    const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))
+    expect(body.Project).toEqual({ Id: 26080 })
+  })
+
+  it('fails before posting when no project can be resolved', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubFetch({ ok: true, json: { Id: 800 } })
+
+    const result = await tp.createFeature({ title: 'feature' })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.body).toContain('Cannot resolve the project for feature "feature"')
+  })
+})
+
+describe('createEpic project resolution', () => {
+  it('fails before posting when TP_PROJECT_ID is unset', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubFetch({ ok: true, json: { Id: 900 } })
+
+    const result = await tp.createEpic({ title: 'epic' })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.body).toContain('Cannot create an epic without a project')
+  })
+
+  it('uses the configured project and surfaces TP errors', async () => {
+    const tp = await loadClient({ TP_PROJECT_ID: '26080' })
+    const fetchMock = stubFetch({ ok: false, text: 'Name is required' })
+
+    const result = await tp.createEpic({ title: 'epic' })
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body))
+    expect(body.Project).toEqual({ Id: '26080' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.body).toBe('Name is required')
+  })
+})

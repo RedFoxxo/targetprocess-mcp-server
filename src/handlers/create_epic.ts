@@ -9,18 +9,21 @@ export async function handleCreateEpic(
     projectId?: string
   },
 ) {
-  const response = await tp.createEpic(params)
+  const result = await tp.createEpic(params)
 
-  if (response instanceof Error) {
+  if (!result.ok) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Failed to create epic "${params.title}"\n Error: ${response.message}`
+        text: `Failed to create epic "${params.title}"\n` +
+          `HTTP status: ${result.status}\n` +
+          `Response body: ${result.body}`,
       }],
+      isError: true,
     }
   }
 
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(response) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result.data) }],
   }
 }

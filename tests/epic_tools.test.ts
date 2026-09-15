@@ -18,7 +18,7 @@ beforeEach(() => {
 
 describe('handleCreateEpic', () => {
   it('returns created epic on success', async () => {
-    vi.mocked(mockTp.createEpic).mockResolvedValue({ Id: 148813, Name: 'New Epic' } as any)
+    vi.mocked(mockTp.createEpic).mockResolvedValue({ ok: true, data: { Id: 148813, Name: 'New Epic' } } as any)
 
     const result = await handleCreateEpic(mockTp, { title: 'New Epic' })
     const parsed = JSON.parse(result.content[0].text)
@@ -28,7 +28,7 @@ describe('handleCreateEpic', () => {
   })
 
   it('returns failure message when null', async () => {
-    vi.mocked(mockTp.createEpic).mockResolvedValue(new Error('Simulated failure') as any)
+    vi.mocked(mockTp.createEpic).mockResolvedValue({ ok: false, status: 400, body: 'Simulated failure' } as any)
 
     const result = await handleCreateEpic(mockTp, { title: 'New Epic' })
 

@@ -77,18 +77,21 @@ export async function handleCreateFormattedUserStory(
 
   const description = parts.join('\n')
 
-  const userStoryResponse = await tp.createUserStory<TP.UserStory>({ title, description, featureId, releaseId, projectId, teamId, tags, teamIterationId })
+  const result = await tp.createUserStory<TP.UserStory>({ title, description, featureId, releaseId, projectId, teamId, tags, teamIterationId })
 
-  if (userStoryResponse instanceof Error) {
+  if (!result.ok) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Failed to create formatted user story "${title}"\n Error: ${userStoryResponse.message}`
+        text: `Failed to create formatted user story "${title}"\n` +
+          `HTTP status: ${result.status}\n` +
+          `Response body: ${result.body}`,
       }],
+      isError: true,
     }
   }
 
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(userStoryResponse) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result.data) }],
   }
 }

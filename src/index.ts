@@ -1259,21 +1259,24 @@ server.registerTool(
     },
   },
   async ({ title, resourceId, resourceType, description }) => {
-    const testPlanResponse = await tp.createTestPlan<TP.TestPlan>(title, resourceId, resourceType, { description });
+    const result = await tp.createTestPlan<TP.TestPlan>(title, resourceId, resourceType, { description });
 
-    if (testPlanResponse instanceof Error) {
+    if (!result.ok) {
       return {
         content: [{
           type: 'text',
-          text: `Failed to create test plan "${title}" for ${resourceType} id: ${resourceId}`
-        }]
+          text: `Failed to create test plan "${title}" for ${resourceType} id: ${resourceId}\n` +
+            `HTTP status: ${result.status}\n` +
+            `Response body: ${result.body}`
+        }],
+        isError: true,
       };
     }
 
     return {
       content: [{
         type: 'text',
-        text: JSON.stringify(testPlanResponse)
+        text: JSON.stringify(result.data)
       }],
     };
   }
@@ -1815,11 +1818,12 @@ server.registerTool(
     const failed: string[] = []
 
     for (const tc of testCases) {
-      const testCase = await tp.createTestCase<TP.TestCase>(tc.name, tc.description, String(testPlanId))
-      if (testCase instanceof Error) {
+      const result = await tp.createTestCase<TP.TestCase>(tc.name, tc.description, String(testPlanId))
+      if (!result.ok) {
         failed.push(tc.name)
         continue
       }
+      const testCase = result.data
 
       let stepsAdded = 0
       let stepsFailed = 0

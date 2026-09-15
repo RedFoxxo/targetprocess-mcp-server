@@ -100,18 +100,21 @@ export async function handleCreateFormattedFeature(
 
   const description = parts.join('\n')
 
-  const featureResponse = await tp.createFeature<TP.Feature>({ title, description, epicId, releaseId, projectId, teamId })
+  const result = await tp.createFeature<TP.Feature>({ title, description, epicId, releaseId, projectId, teamId })
 
-  if (featureResponse instanceof Error) {
+  if (!result.ok) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Failed to create formatted feature "${title}"\n Error: ${featureResponse.message}`
+        text: `Failed to create formatted feature "${title}"\n` +
+          `HTTP status: ${result.status}\n` +
+          `Response body: ${result.body}`,
       }],
+      isError: true,
     }
   }
 
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(featureResponse) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result.data) }],
   }
 }

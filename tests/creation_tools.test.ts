@@ -130,7 +130,7 @@ describe('handleCreateBugBasedOnCard', () => {
 
 describe('handleCreateUserStory', () => {
   it('returns created user story on success', async () => {
-    vi.mocked(mockTp.createUserStory).mockResolvedValue({ Id: 600, Name: 'User can register' } as any)
+    vi.mocked(mockTp.createUserStory).mockResolvedValue({ ok: true, data: { Id: 600, Name: 'User can register' } } as any)
 
     const result = await handleCreateUserStory(mockTp, { title: 'User can register' })
     const parsed = JSON.parse(result.content[0].text)
@@ -140,7 +140,7 @@ describe('handleCreateUserStory', () => {
   })
 
   it('returns failure message when null', async () => {
-    vi.mocked(mockTp.createUserStory).mockResolvedValue(new Error('Simulated failure') as any)
+    vi.mocked(mockTp.createUserStory).mockResolvedValue({ ok: false, status: 400, body: 'Simulated failure' } as any)
 
     const result = await handleCreateUserStory(mockTp, { title: 'Some story' })
 
@@ -148,7 +148,7 @@ describe('handleCreateUserStory', () => {
   })
 
   it('passes optional fields to client', async () => {
-    vi.mocked(mockTp.createUserStory).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createUserStory).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateUserStory(mockTp, { title: 'Story', featureId: '123', releaseId: '456' })
 
@@ -158,7 +158,7 @@ describe('handleCreateUserStory', () => {
   })
 
   it('passes tags and teamIterationId to createUserStory', async () => {
-    vi.mocked(mockTp.createUserStory).mockResolvedValue({ Id: 1 } as any)
+    vi.mocked(mockTp.createUserStory).mockResolvedValue({ ok: true, data: { Id: 1 } } as any)
 
     await handleCreateUserStory(mockTp, { title: 'Story', tags: 'regression, mobile', teamIterationId: '789' })
 
@@ -170,7 +170,7 @@ describe('handleCreateUserStory', () => {
 
 describe('handleCreateFeature', () => {
   it('returns created feature on success', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue({ Id: 700, Name: 'Auth Module' } as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: true, data: { Id: 700, Name: 'Auth Module' } } as any)
 
     const result = await handleCreateFeature(mockTp, { title: 'Auth Module' })
     const parsed = JSON.parse(result.content[0].text)
@@ -179,7 +179,7 @@ describe('handleCreateFeature', () => {
   })
 
   it('returns failure message when null', async () => {
-    vi.mocked(mockTp.createFeature).mockResolvedValue(new Error('Simulated failure') as any)
+    vi.mocked(mockTp.createFeature).mockResolvedValue({ ok: false, status: 400, body: 'Simulated failure' } as any)
 
     const result = await handleCreateFeature(mockTp, { title: 'Auth Module' })
 
