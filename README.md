@@ -55,7 +55,9 @@ Tasks
 - `get_task` — Get a Task by ID (id)
 - `get_user_story_tasks` — List Tasks under a User Story for safe creation reconciliation (userStoryId)
 - `create_task` — Create a new task linked to a user story (title, userStoryId, optional description)
-- `update_task` — Update an existing task description or total effort estimate (id, optional description, optional effort; use 0 to clear the estimate)
+- `update_task` — Update an existing task description, total effort estimate, or workflow state (id, optional description, optional effort, optional entityStateId; use 0 to clear the estimate)
+  > Resolve state name → ID via `get_task_workflows` before passing `entityStateId`
+- `get_task_workflows` — Get every workflow state a task can be moved to, resolved from the process of the task's own project (taskId)
 - `list_my_user_stories` — List User Stories assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 - `list_my_bugs` — List Bugs assigned to the current user, optionally filtered by state (optional state, optional take, optional skip)
 
@@ -309,3 +311,4 @@ npx vitest            # watch mode
 | `test_case_tools.test.ts` | `get_test_case_by_id`, `update_test_case_by_id`, `add_test_case_step_by_id`, `update_test_case_step_by_id`, `delete_test_case_step_by_id` |
 | `workflow_tools.test.ts` | `get_processes`, `get_process_workflows`, `get_bug_workflows`, `get_user_story_workflows`, `get_relation_types`, `get_version` |
 | `role_effort.test.ts` | `get_role_efforts`, `set_role_effort` |
+| `get_task_workflows.test.ts` | `get_task_workflows` |

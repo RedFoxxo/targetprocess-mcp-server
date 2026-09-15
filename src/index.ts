@@ -73,6 +73,7 @@ import { handleGetRelationTypes } from "./handlers/get_relation_types.js";
 import { handleGetVersion } from "./handlers/get_version.js";
 import { handleRemoveRoleAssignment } from "./handlers/remove_role_assignment.js";
 import { handleGetRoleEfforts } from "./handlers/get_role_efforts.js";
+import { handleGetTaskWorkflows } from "./handlers/get_task_workflows.js";
 import { handleSetRoleEffort } from "./handlers/set_role_effort.js";
 import { handleSetBusinessValue } from "./handlers/set_business_value.js";
 
@@ -2022,10 +2023,25 @@ server.registerTool(
 )
 
 server.registerTool(
+  'get_task_workflows',
+  {
+    title: 'Get the states a task can be moved to',
+    description: 'Returns every workflow state available to a Task, resolved from the process of the task\'s own project. Use this to turn a state name (e.g. "Coded") into the entityStateId that "update_task" needs. States belonging to a team workflow are flagged with isTeamWorkflow.',
+    inputSchema: {
+      taskId: z.string()
+        .regex(/^\d+$/)
+        .describe('Task ID (e.g. 145789)'),
+    },
+  },
+  async ({ taskId }) => handleGetTaskWorkflows(tp, taskId)
+)
+
+server.registerTool(
   'update_task',
   {
     title: 'Update a task',
-    description: 'Update an existing task description or effort estimate. Omitted fields are not changed.',
+    description: `Update an existing task description, effort estimate, or workflow state. Omitted fields are not changed.
+      CRITICAL WORKFLOW: IF the user specified a state by name (e.g. "Coded") rather than an ID, call "get_task_workflows" for this task first and use the matching entityStateId.`,
     inputSchema: {
       id: z.string()
         .describe('Task ID (e.g. 145789)'),
@@ -2036,16 +2052,20 @@ server.registerTool(
         .nonnegative()
         .optional()
         .describe('Updated TOTAL effort estimate of the task. Use 0 to clear the estimate. If the user asks for the effort of a role (e.g. Developer, Designer), use "set_role_effort" instead — TP computes this total from the per-role efforts'),
+      entityStateId: z.string()
+        .regex(/^\d+$/)
+        .optional()
+        .describe('Optional Entity State ID — if the user gave a state name, resolve it via "get_task_workflows" first'),
     },
   },
-  async ({ id, description, effort }) => {
-    if (description === undefined && effort === undefined) {
+  async ({ id, description, effort, entityStateId }) => {
+    if (description === undefined && effort === undefined && entityStateId === undefined) {
       return {
         content: [{ type: 'text' as const, text: 'No task fields were provided; nothing was changed.' }],
         isError: true,
       }
     }
-    return handleUpdateTask(tp, { id, description, effort })
+    return handleUpdateTask(tp, { id, description, effort, entityStateId })
   }
 )
 

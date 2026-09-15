@@ -12,6 +12,7 @@ import {
   LoggedUser,
   RoleAssignment,
   RoleEffort,
+  WorkflowEntityState,
   TestPlan,
   TestCase
 } from "./types.js";
@@ -1272,10 +1273,36 @@ export class TpClient {
     }, task)
   }
 
-  async updateTask<T>({ id, description, effort }: { id: string, description?: string, effort?: number }): Promise<T> {
+  // Tasks inherit the workflow of their project's process, so the states a
+  // task may be moved to are resolved from the task itself rather than from a
+  // configured process id.
+  async getTaskProcess(taskId: string): Promise<{ Id: number, Name: string, Project: { Id: number, Name: string, Process: { Id: number, Name: string } } } | Error | null> {
+    return this.get<{ Id: number, Name: string, Project: { Id: number, Name: string, Process: { Id: number, Name: string } } }>({
+      pathParam: ["Tasks", taskId],
+      param: { "format": "json", "include": "[Id,Name,Project[Id,Name,Process[Id,Name]]]" },
+    })
+  }
+
+  // Filtered through Workflow rather than the deprecated EntityState.Process
+  // and EntityState.EntityType fields.
+  async getTaskEntityStates(processId: string): Promise<TpResponse<WorkflowEntityState> | Error | null> {
+    return this.get<TpResponse<WorkflowEntityState>>({
+      pathParam: ["EntityStates"],
+      param: {
+        "format": "json",
+        "where": `Workflow.Process.Id eq ${parseInt(processId)} and Workflow.EntityType.Name eq 'Task'`,
+        "include": "[Id,Name,NumericPriority,IsInitial,IsFinal,Workflow[Id,Name,ParentWorkflow[Id,Name]]]",
+        "orderBy": "NumericPriority",
+        "take": 100,
+      },
+    })
+  }
+
+  async updateTask<T>({ id, description, effort, entityStateId }: { id: string, description?: string, effort?: number, entityStateId?: string }): Promise<T> {
     const task: Record<string, any> = { "Id": id }
     if (description !== undefined) task["Description"] = description
     if (effort !== undefined) task["Effort"] = effort
+    if (entityStateId) task["EntityState"] = { "Id": entityStateId }
 
     return this.post<any, T>({
       pathParam: ["Tasks"],

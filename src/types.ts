@@ -856,6 +856,23 @@ export interface RoleAssignment {
   }
 }
 
+// An entity state together with the workflow it belongs to. A team workflow
+// is a sub-workflow, identified by a non-null ParentWorkflow.
+export interface WorkflowEntityState {
+  ResourceType: string
+  Id: number
+  Name: string
+  NumericPriority: number
+  IsInitial: boolean
+  IsFinal: boolean
+  Workflow: {
+    ResourceType: string
+    Id: number
+    Name: string
+    ParentWorkflow: { Id: number, Name: string } | null
+  }
+}
+
 // Effort booked against one role on one card. TP computes the card's own
 // Effort field as the sum of these, so per-role estimates are written here.
 export interface RoleEffort {

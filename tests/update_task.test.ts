@@ -94,3 +94,38 @@ describe('updateTask effort', () => {
     })
   })
 })
+
+describe('updateTask entity state', () => {
+  it('posts the state as an EntityState reference', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', entityStateId: '742' })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).toEqual({
+      Id: '36195',
+      EntityState: { Id: '742' },
+    })
+  })
+
+  it('does not touch the state when it is omitted', async () => {
+    const tp = await loadClient()
+    const fetchMock = stubSuccessfulUpdate()
+
+    await tp.updateTask({ id: '36195', effort: 3 })
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(String(options.body))).not.toHaveProperty('EntityState')
+  })
+
+  it('passes the state through the handler', async () => {
+    const mockTp = {
+      updateTask: vi.fn().mockResolvedValue({ Id: 36195 }),
+    } as unknown as TpClient
+
+    await handleUpdateTask(mockTp, { id: '36195', entityStateId: '742' })
+
+    expect(mockTp.updateTask).toHaveBeenCalledWith({ id: '36195', entityStateId: '742' })
+  })
+})
